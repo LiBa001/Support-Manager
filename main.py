@@ -306,5 +306,12 @@ async def on_message(message):
 
         await client.send_message(message.channel, "Okay, new prefix is `{0}`.".format(content))
 
+    # TODO: add invite command
 
-client.run('[BOT-TOKEN]')  # TODO: insert token
+
+@client.event
+async def on_server_join(server):
+    jPoints.prefix.set(server.id, '/')
+
+
+client.run('BOT-TOKEN')  # TODO: insert token
