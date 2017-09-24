@@ -32,6 +32,14 @@ class Element:
         current = self.get(object)
         self.set(object, current + value)
 
+    def remove_Element(self, object):
+        with open(self.file, 'r', encoding="utf8") as f:
+            data = json.load(f)
+
+        with open(self.file, 'w', encoding="utf8") as f:
+            del data[object]
+            json.dump(data, f, indent=" ", ensure_ascii=False)
+
     def remove_from_Value(self, object, value):
         current = self.get(object)
         self.set(object, current - value)
@@ -61,6 +69,11 @@ class Element:
 
         return position
 
+    def get_dict(self):
+        with open(self.file, 'r') as f:
+            return json.load(f)
 
-channel = Element("C:\\Users\\Linus\\PycharmProjects\\Support-Manager\\channels.json")
+
+channel = Element("C:\\Users\\Linus\\PycharmProjects\\Support-Manager\\channels.json")  # TODO: adjust paths
 prefix = Element("C:\\Users\\Linus\\PycharmProjects\\Support-Manager\\prefixes.json")
+ticket = Element("C:\\Users\\Linus\\PycharmProjects\\Support-Manager\\tickets.json")
