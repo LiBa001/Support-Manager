@@ -34,6 +34,10 @@ helpmsg['help'] = "`{prefix}help` shows this help message.\n" \
                   "Type `help` after any command to see the command-specific help-page!\n" \
                   "For example: `{prefix}ticket help`"
 
+helpmsg['invite'] = "I'll send you an link to invite me to your server.\n" \
+                    "Just type `{prefix}invite`!"
+
+
 @client.event
 async def on_ready():
     print(client.user.name)
@@ -51,6 +55,10 @@ async def on_message(message):
     if message.channel.is_private:
         if message.author != client.user:
             await client.send_message(message.channel, "Sorry, I can't help you in a private chat.")
+        return 0
+
+    client_member = message.server.get_member(client.user.id)
+    if not client_member.permissions_in(message.channel).send_messages:
         return 0
 
     prefix = jPoints.prefix.get(message.server.id)
@@ -97,7 +105,10 @@ async def on_message(message):
                 return 0
 
             ticket_nr = len(jPoints.ticket.get_dict())+1
-            jPoints.ticket.set(ticket_nr, {'Author': message.author.id, 'Info': content, 'closed': False})
+            jPoints.ticket.set(ticket_nr, {'Author': message.author.id,
+                                           'Info': content,
+                                           'closed': False,
+                                           'Server': message.server.id})
 
             ticket_embed = discord.Embed(
                 title="New ticket",
@@ -145,6 +156,10 @@ async def on_message(message):
                     author = await client.get_user_info(ticket[info])
                     ticket[info] = author.mention
 
+                if info == 'Server':
+                    server = client.get_server(ticket[info])
+                    ticket[info] = server.name
+
                 ticket_embed.add_field(
                     name=info,
                     value=ticket[info]
@@ -161,9 +176,14 @@ async def on_message(message):
                 await client.send_message(message.channel, "Given ticket can't be found.")
                 return 0
 
-            if (not message.author.server_permissions.administrator) and (ticket['author'] != message.author):
-                await client.send_message(message.channel, "You have to be admin or ticket author for that.")
-                return 0
+            if ticket['Author'] != message.author:
+                if not message.author.server_permissions.administrator:
+                    await client.send_message(message.channel, "You have to be admin or ticket author for that.")
+                    return 0
+
+                elif ticket['Server'] != message.server.id:
+                    await client.send_message(message.channel, "This ticket is from an other server.")
+                    return 0
 
             if ticket['closed']:
                 await client.send_message(message.channel, "Ticket is already closed.")
@@ -279,6 +299,10 @@ async def on_message(message):
             destination = message.channel
         else:
             destination = message.author
+            try:
+                await client.add_reaction(message, "✅")
+            except discord.errors.Forbidden:
+                pass
 
         await client.send_message(destination, embed=help_embed)
 
@@ -306,12 +330,39 @@ async def on_message(message):
 
         await client.send_message(message.channel, "Okay, new prefix is `{0}`.".format(content))
 
-    # TODO: add invite command
+    if message.content.lower().startswith(prefix + 'invite'):
+        content = message.content[8:]
+
+        if content == 'help':
+            help_embed = discord.Embed(
+                title='Invite',
+                description=helpmsg['invite'].format(prefix=prefix),
+                color=0x37ceb2
+            )
+            await client.send_message(message.channel, embed=help_embed)
+            return 0
+
+        await client.send_message(
+            message.channel,
+            "Okay, invite me to your Server:\n"
+            "https://discordapp.com/oauth2/authorize?client_id=360801859461447700&scope=bot&permissions=19456"
+        )
 
 
 @client.event
 async def on_server_join(server):
     jPoints.prefix.set(server.id, '/')
+    try:
+        await client.send_message(server.owner, "Hey, you or an admin on your server invited me to '{0}'. :smiley:\n"
+                                                "The default prefix is `/`, so type `/help` into a text channel "
+                                                "on the server to see what you "
+                                                "(or rather I) can do.".format(server.name))
+
+        await client.send_message(server.default_channel, "Hey, I'm glad to be here. "
+                                                          "Hopefully I'll be helpful :smiley:.\n"
+                                                          "Type `/help` to see all available commands.")
+    except discord.errors.Forbidden:
+        pass
 
 
 client.run('BOT-TOKEN')  # TODO: insert token
