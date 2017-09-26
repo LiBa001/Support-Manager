@@ -478,4 +478,4 @@ async def on_server_join(server):
         pass
 
 
-client.run('MzYwODAxODU5NDYxNDQ3NzAw.DKa2bQ.BIuLY4ptwH8_QT9RszlM6oXlmBA')  # TODO: insert token
+client.run('BOT-TOKEN')  # TODO: insert token
