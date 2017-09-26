@@ -13,6 +13,14 @@ helpmsg['ticket'] = "Syntax:\n" \
                     "The info can't be longer than 100 characters.\n" \
                     "A ticket can only be closed by the author or an admin."
 
+helpmsg['tickets'] = "It's to see all tickets of . . .\n" \
+                     ". . . every server:\n" \
+                     "  `{prefix}tickets all`\n" \
+                     ". . . this server:\n" \
+                     "  `{prefix}tickets here`\n" \
+                     ". . . a specific user:\n" \
+                     "  `{prefix}tickets @[user]`"
+
 helpmsg['addinfo'] = "This is to add information to an existing ticket.\n" \
                      "It can only be used by the ticket author.\n" \
                      "Syntax: `{prefix}addinfo [ticket number] [info]`"
@@ -63,7 +71,107 @@ async def on_message(message):
 
     prefix = jPoints.prefix.get(message.server.id)
 
-    if message.content.lower().startswith(prefix + "ticket"):
+    if message.content.lower().startswith(prefix + 'tickets'):
+        content = message.content[9:]
+
+        if content == 'help':
+            help_embed = discord.Embed(
+                title='Tickets',
+                description=helpmsg['tickets'].format(prefix=prefix),
+                color=0x37ceb2
+            )
+            await client.send_message(message.channel, embed=help_embed)
+            return 0
+
+        tickets = jPoints.ticket.get_dict()
+
+        if content.lower().startswith('all'):
+            tickets_embed = discord.Embed(
+                title="All active tickets.",
+                description="Every ticket of every server.",
+                color=0x37ceb2
+            )
+
+            for ticket_nr in tickets:
+                ticket = tickets[ticket_nr]
+
+                if ticket['closed']:
+                    continue
+
+                author = await client.get_user_info(ticket['Author'])
+
+                server = client.get_server(ticket['Server'])
+
+                tickets_embed.add_field(
+                    name="#" + ticket_nr,
+                    value="**Author:** {0}\n"
+                          "**Info:** {1}\n"
+                          "**Server:** *{2}*".format(author.mention, ticket['Info'], server.name),
+                    inline=False
+                )
+
+        elif content.lower().startswith('here'):
+            tickets_embed = discord.Embed(
+                title="Active tickets.",
+                description="Every ticket of this server.",
+                color=0x37ceb2
+            )
+
+            for ticket_nr in tickets:
+                ticket = tickets[ticket_nr]
+
+                if ticket['closed'] or ticket['Server'] != message.server.id:
+                    continue
+
+                author = await client.get_user_info(ticket['Author'])
+
+                tickets_embed.add_field(
+                    name="#" + ticket_nr,
+                    value="**Author:** {0}\n"
+                          "**Info:** {1}".format(author.mention, ticket['Info']),
+                    inline=False
+                )
+
+        elif len(content) == 0:
+            await client.send_message(message.channel, "Which tickets?\n"
+                                                       "Type `{0}tickets help` to see how it works.".format(prefix))
+            return 0
+
+        else:
+            member = message.mentions[0]
+
+            tickets_embed = discord.Embed(
+                title="User tickets.",
+                description="Every active ticket of {0}.".format(member.mention),
+                color=0x37ceb2
+            )
+
+            for ticket_nr in tickets:
+                ticket = tickets[ticket_nr]
+
+                if ticket['closed'] or ticket['Author'] != member.id:
+                    continue
+
+                server = client.get_server(ticket['Server'])
+
+                tickets_embed.add_field(
+                    name="#" + ticket_nr,
+                    value="**Info:** {0}\n"
+                          "**Server:** *{1}*".format(ticket['Info'], server.name),
+                    inline=False
+                )
+
+        if len(tickets_embed.fields) == 0:
+            await client.send_message(message.channel, "There are no active tickets.")
+            return 0
+
+        tickets_embed.set_footer(
+            text="To see also the added info of an ticket use the 'ticket show' command."
+        )
+
+        await client.send_message(message.channel, embed=tickets_embed)
+
+    elif message.content.lower().startswith(prefix + "ticket"):
         content = message.content[8:]
 
         if content == 'help':
@@ -271,6 +379,11 @@ async def on_message(message):
 
         jPoints.channel.set(message.server.id, channel_id)
 
+        try:
+            await client.add_reaction(message, "✅")
+        except discord.errors.Forbidden:
+            pass
+
     if message.content.lower().startswith(prefix + 'help'):
         content = message.content[6:]
 
@@ -365,4 +478,4 @@ async def on_server_join(server):
         pass
 
 
-client.run('BOT-TOKEN')  # TODO: insert token
+client.run('MzYwODAxODU5NDYxNDQ3NzAw.DKa2bQ.BIuLY4ptwH8_QT9RszlM6oXlmBA')  # TODO: insert token
