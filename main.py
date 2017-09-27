@@ -52,12 +52,13 @@ def close_invalids(tickets):
         if ticket['closed']:
             continue
         
-        author = await client.get_user_info(ticket['Author'])
+        #author = await client.get_user_info(ticket['Author'])
         server = client.get_server(ticket['Server'])
         
-        if (author is None) or (server is None):
+        if server is None:
             tickets[ticket_nr]['closed'] = True
             jPoints.ticket.set(ticket_nr, tickets[ticket_nr])
+        
     return tickets
 
 
