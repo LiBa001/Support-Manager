@@ -301,7 +301,7 @@ async def on_message(message):
                 await client.send_message(message.channel, "Given ticket can't be found.")
                 return 0
 
-            if ticket['Author'] != message.author:
+            if ticket['Author'] != message.author.id:
                 if not message.author.server_permissions.administrator:
                     await client.send_message(message.channel, "You have to be admin or ticket author for that.")
                     return 0
