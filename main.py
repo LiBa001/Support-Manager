@@ -315,7 +315,7 @@ async def on_message(message):
                     await client.send_message(message.channel, "You have to be admin or ticket author for that.")
                     return 0
 
-                elif ticket['Server'] != message.server.id:
+                elif ticket['Server'] != message.server.id and message.author.id not in bot_admins:
                     await client.send_message(message.channel, "This ticket is from an other server.")
                     return 0
 
