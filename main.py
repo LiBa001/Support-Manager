@@ -48,6 +48,22 @@ helpmsg['invite'] = "I'll send you an link to invite me to your server.\n" \
                     "Just type `{prefix}invite`!"
 
 
+def close_invalids(tickets):
+    for ticket_nr in tickets:
+        ticket = tickets[ticket_nr]
+        
+        if ticket['closed']:
+            continue
+
+        server = client.get_server(ticket['Server'])
+        
+        if server is None:
+            tickets[ticket_nr]['closed'] = True
+            jPoints.ticket.set(ticket_nr, tickets[ticket_nr])
+        
+    return tickets
+
+
 @client.event
 async def on_ready():
     print(client.user.name)
@@ -92,7 +108,7 @@ async def on_message(message):
             await client.send_message(message.channel, embed=help_embed)
             return 0
 
-        tickets = jPoints.ticket.get_dict()
+        tickets = close_invalids(jPoints.ticket.get_dict())
 
         if content.lower().startswith('all'):
             tickets_embed = discord.Embed(
@@ -250,6 +266,7 @@ async def on_message(message):
 
         if content.lower().startswith("show"):
             content = content[5:]
+            close_invalids(jPoints.ticket.get_dict())
 
             try:
                 ticket = jPoints.ticket.get(content)
@@ -487,4 +504,4 @@ async def on_server_join(server):
         pass
 
 
-client.run('MzYwODAxODU5NDYxNDQ3NzAw.DKa2bQ.BIuLY4ptwH8_QT9RszlM6oXlmBA')  # TODO: insert token
+client.run('BOT-TOKEN')  # TODO: insert token
