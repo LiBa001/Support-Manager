@@ -5,6 +5,8 @@ import time
 
 client = discord.Client()
 
+bot_admins = ['269959141508775937']
+
 helpmsg = {}
 
 helpmsg['ticket'] = "Syntax:\n" \
@@ -70,6 +72,13 @@ async def on_message(message):
         return 0
 
     prefix = jPoints.prefix.get(message.server.id)
+
+    commands = ['tickets', 'ticket', 'addinfo', 'channel', 'help', 'prefix', 'invite']
+
+    if message.content.lower().startswith(tuple(map(lambda com: prefix + com, commands))):
+        await client.send_typing(message.channel)
+    else:
+        return 0  # Attention to this when adding new commands.
 
     if message.content.lower().startswith(prefix + 'tickets'):
         content = message.content[9:]
@@ -285,7 +294,7 @@ async def on_message(message):
                 return 0
 
             if ticket['Author'] != message.author:
-                if not message.author.server_permissions.administrator:
+                if (not message.author.server_permissions.administrator) and (message.author.id not in bot_admins):
                     await client.send_message(message.channel, "You have to be admin or ticket author for that.")
                     return 0
 
@@ -367,7 +376,7 @@ async def on_message(message):
             await client.send_message(message.channel, embed=help_embed)
             return 0
 
-        if not message.author.server_permissions.administrator:
+        if (not message.author.server_permissions.administrator) and (message.author.id not in bot_admins):
             await client.send_message(message.channel, "You have to be admin for that.")
             return 0
 
@@ -408,7 +417,7 @@ async def on_message(message):
                 value=helpmsg[cmd].format(prefix=prefix)
             )
 
-        if message.author.server_permissions.administrator:
+        if message.author.server_permissions.administrator or message.author.id in bot_admins:
             destination = message.channel
         else:
             destination = message.author
@@ -431,7 +440,7 @@ async def on_message(message):
             await client.send_message(message.channel, embed=help_embed)
             return 0
 
-        if not message.author.server_permissions.administrator:
+        if (not message.author.server_permissions.administrator) and (message.author.id not in bot_admins):
             await client.send_message(message.channel, "You have to be admin for that.")
             return 0
 
