@@ -94,6 +94,8 @@ async def on_message(message):
     if message.content.lower().startswith(tuple(map(lambda com: prefix + com, commands))):
         await client.send_typing(message.channel)
     else:
+        if client.user in message.mentions:
+            await client.send_message(message.channel, "Type `{0}help` to see available commands.".format(prefix))
         return 0  # Attention to this when adding new commands.
 
     if message.content.lower().startswith(prefix + 'tickets'):
@@ -486,9 +488,6 @@ async def on_message(message):
             "Okay, invite me to your Server:\n"
             "https://discordapp.com/oauth2/authorize?client_id=360801859461447700&scope=bot&permissions=19456"
         )
-    
-    elif client.user in message.mentions:
-        await client.send_message(message.channel, "Type `{0}help` to see available commands.".format(prefix))
 
 
 @client.event
