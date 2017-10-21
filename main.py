@@ -328,7 +328,7 @@ async def on_message(message):
             await client.send_message(message.channel, "Ticket closed.")
             await client.send_message(channel, "{0} just closed ticket #{1}".format(message.author.mention, content))
 
-    if message.content.lower().startswith(prefix + 'addinfo'):
+    elif message.content.lower().startswith(prefix + 'addinfo'):
         content = message.content[9:]
 
         if content == 'help':
@@ -381,7 +381,7 @@ async def on_message(message):
             embed=ticket_embed
         )
 
-    if message.content.lower().startswith(prefix + "channel"):
+    elif message.content.lower().startswith(prefix + "channel"):
         content = message.content.split(" ")[1]
 
         if content == 'help':
@@ -410,7 +410,7 @@ async def on_message(message):
         except discord.errors.Forbidden:
             pass
 
-    if message.content.lower().startswith(prefix + 'help'):
+    elif message.content.lower().startswith(prefix + 'help'):
         content = message.content[6:]
 
         if content == 'help':
@@ -445,7 +445,7 @@ async def on_message(message):
 
         await client.send_message(destination, embed=help_embed)
 
-    if message.content.lower().startswith(prefix + 'prefix'):
+    elif message.content.lower().startswith(prefix + 'prefix'):
         content = message.content[8:]
 
         if content == 'help':
@@ -469,7 +469,7 @@ async def on_message(message):
 
         await client.send_message(message.channel, "Okay, new prefix is `{0}`.".format(content))
 
-    if message.content.lower().startswith(prefix + 'invite'):
+    elif message.content.lower().startswith(prefix + 'invite'):
         content = message.content[8:]
 
         if content == 'help':
@@ -486,6 +486,9 @@ async def on_message(message):
             "Okay, invite me to your Server:\n"
             "https://discordapp.com/oauth2/authorize?client_id=360801859461447700&scope=bot&permissions=19456"
         )
+    
+    elif client.user in message.mentions:
+        await client.send_message(message.channel, "Type `{0}help` to see available commands.".format(prefix))
 
 
 @client.event
