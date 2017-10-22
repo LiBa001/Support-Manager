@@ -1,7 +1,8 @@
 import discord
-import jPoints
+import sqlib
 import re
 import time
+import json
 
 client = discord.Client()
 
@@ -48,20 +49,19 @@ helpmsg['invite'] = "I'll send you an link to invite me to your server.\n" \
                     "Just type `{prefix}invite`!"
 
 
-def close_invalids(tickets):
-    for ticket_nr in tickets:
-        ticket = tickets[ticket_nr]
+def close_invalids():
+    for ticket in sqlib.servers.get_all():
+        ticket_nr = ticket[0]
         
-        if ticket['closed']:
+        if ticket[5] == 1:
             continue
 
-        server = client.get_server(ticket['Server'])
+        server = client.get_server(ticket[2])
         
         if server is None:
-            tickets[ticket_nr]['closed'] = True
-            jPoints.ticket.set(ticket_nr, tickets[ticket_nr])
+            sqlib.tickets.update(ticket_nr, {'closed': 1})
         
-    return tickets
+    return sqlib.tickets.get_all()
 
 
 @client.event
@@ -70,10 +70,8 @@ async def on_ready():
     print("--------------")
 
     for server in client.servers:
-        try:
-            jPoints.prefix.get(server.id)
-        except KeyError:
-            jPoints.prefix.set(server.id, '/')
+        if sqlib.servers.get(server.id) is None:
+            sqlib.servers.add_element(server.id, {'prefix': '/'})
 
 
 @client.event
@@ -87,7 +85,7 @@ async def on_message(message):
     if not client_member.permissions_in(message.channel).send_messages:
         return 0
 
-    prefix = jPoints.prefix.get(message.server.id)
+    prefix = sqlib.servers.get(message.server.id, 'prefix')[0]
 
     commands = ['tickets', 'ticket', 'addinfo', 'channel', 'help', 'prefix', 'invite']
 
@@ -110,7 +108,7 @@ async def on_message(message):
             await client.send_message(message.channel, embed=help_embed)
             return 0
 
-        tickets = close_invalids(jPoints.ticket.get_dict())
+        tickets = close_invalids()
 
         if content.lower().startswith('all'):
             tickets_embed = discord.Embed(
@@ -119,21 +117,21 @@ async def on_message(message):
                 color=0x37ceb2
             )
 
-            for ticket_nr in tickets:
-                ticket = tickets[ticket_nr]
+            for ticket in tickets:
+                ticket_nr = ticket[0]
 
-                if ticket['closed']:
+                if ticket[5] == 1:
                     continue
 
-                author = await client.get_user_info(ticket['Author'])
+                author = await client.get_user_info(ticket[1])
 
-                server = client.get_server(ticket['Server'])
+                server = client.get_server(ticket[2])
 
                 tickets_embed.add_field(
                     name="#" + ticket_nr,
                     value="**Author:** {0}\n"
                           "**Info:** {1}\n"
-                          "**Server:** *{2}*".format(author.mention, ticket['Info'], server.name),
+                          "**Server:** *{2}*".format(author.mention, ticket[3], server.name),
                     inline=False
                 )
 
@@ -144,18 +142,18 @@ async def on_message(message):
                 color=0x37ceb2
             )
 
-            for ticket_nr in tickets:
-                ticket = tickets[ticket_nr]
+            for ticket in tickets:
+                ticket_nr = ticket[0]
 
-                if ticket['closed'] or ticket['Server'] != message.server.id:
+                if ticket[5] == 1 or ticket[2] != message.server.id:
                     continue
 
-                author = await client.get_user_info(ticket['Author'])
+                author = await client.get_user_info(ticket[1])
 
                 tickets_embed.add_field(
                     name="#" + ticket_nr,
                     value="**Author:** {0}\n"
-                          "**Info:** {1}".format(author.mention, ticket['Info']),
+                          "**Info:** {1}".format(author.mention, ticket[3]),
                     inline=False
                 )
 
@@ -173,18 +171,18 @@ async def on_message(message):
                 color=0x37ceb2
             )
 
-            for ticket_nr in tickets:
-                ticket = tickets[ticket_nr]
+            for ticket in tickets:
+                ticket_nr = ticket[0]
 
-                if ticket['closed'] or ticket['Author'] != member.id:
+                if ticket[5] == 1 or ticket[1] != member.id:
                     continue
 
-                server = client.get_server(ticket['Server'])
+                server = client.get_server(ticket[2])
 
                 tickets_embed.add_field(
                     name="#" + ticket_nr,
                     value="**Info:** {0}\n"
-                          "**Server:** *{1}*".format(ticket['Info'], server.name),
+                          "**Server:** *{1}*".format(ticket[3], server.name),
                     inline=False
                 )
 
@@ -210,10 +208,9 @@ async def on_message(message):
             await client.send_message(message.channel, embed=help_embed)
             return 0
 
-        try:
-            channel_id = str(jPoints.channel.get(message.server.id))
-            channel = client.get_channel(channel_id)
-        except KeyError:
+        channel_id = str(sqlib.servers.get(message.server.id, 'channel')[0])
+        channel = client.get_channel(channel_id)
+        if channel is None:
             await client.send_message(
                 message.channel,
                 "It seems there is no support channel configured. :confused:\n"
@@ -239,11 +236,12 @@ async def on_message(message):
                                                            "If you don't tell it, nobody can help you.")
                 return 0
 
-            ticket_nr = len(jPoints.ticket.get_dict())+1
-            jPoints.ticket.set(ticket_nr, {'Author': message.author.id,
-                                           'Info': content,
-                                           'closed': False,
-                                           'Server': message.server.id})
+            ticket_nr = str(len(sqlib.tickets.get_all())+1)
+            sqlib.tickets.add_element(ticket_nr, {'author': message.author.id,
+                                                  'server': message.server.id,
+                                                  'info': content,
+                                                  'added': "{}",
+                                                  'closed': 0})
 
             ticket_embed = discord.Embed(
                 title="New ticket",
@@ -268,15 +266,15 @@ async def on_message(message):
 
         if content.lower().startswith("show"):
             content = content[5:]
-            close_invalids(jPoints.ticket.get_dict())
+            close_invalids()
 
-            try:
-                ticket = jPoints.ticket.get(content)
-            except KeyError:
+            ticket = sqlib.tickets.get(content)
+
+            if ticket is None:
                 await client.send_message(message.channel, "Given ticket can't be found.")
                 return 0
 
-            if ticket['closed']:
+            if ticket[5] == 1:
                 await client.send_message(message.channel, "This ticket is closed.")
                 return 0
 
@@ -284,49 +282,67 @@ async def on_message(message):
                 title="Support ticket #{0}".format(content),
                 color=0x37ceb2
             )
+
+            author = await client.get_user_info(ticket[1])
+            ticket[1] = author.mention
+
+            server = client.get_server(ticket[2])
+            ticket[2] = server.name
+
+            added_dict = json.loads(ticket[4])
+            ticket[4] = ""
+            for date in added_dict:
+                ticket[4] += "**{date}:** {info}\n".format(date=date, info=added_dict[date])
+
+            if len(ticket[4]) == 0:
+                ticket[4] = "*Nothing added.*"
+
+            column_names = ['Ticket number', 'Author', 'Server', 'Info', 'Added', 'closed']
+
+            counter = 0
             for info in ticket:
-                if info == 'closed':
+                if counter == 5:
                     continue
 
-                if info == 'Author':
-                    author = await client.get_user_info(ticket[info])
-                    ticket[info] = author.mention
-
-                if info == 'Server':
-                    server = client.get_server(ticket[info])
-                    ticket[info] = server.name
-
                 ticket_embed.add_field(
-                    name=info,
-                    value=ticket[info]
+                    name=column_names[counter],
+                    value=info
                 )
+                counter += 1
 
             await client.send_message(message.channel, embed=ticket_embed)
 
         if content.lower().startswith("close"):
             content = content[6:]
 
-            try:
-                ticket = jPoints.ticket.get(content)
-            except KeyError:
+            ticket = sqlib.tickets.get(content)
+
+            if ticket is None:
                 await client.send_message(message.channel, "Given ticket can't be found.")
                 return 0
 
-            if ticket['Author'] != message.author:
+            if ticket[1] != message.author.id:
                 if (not message.author.server_permissions.administrator) and (message.author.id not in bot_admins):
-                    await client.send_message(message.channel, "You have to be admin or ticket author for that.")
-                    return 0
 
-                elif ticket['Server'] != message.server.id and message.author.id not in bot_admins:
+                    is_supporter = False
+                    for role in message.author.roles:
+                        if role.id == sqlib.servers.get(message.server.id, 'role')[0]:
+                            is_supporter = True
+                            break
+
+                    if not is_supporter:
+                        await client.send_message(message.channel, "You have to be admin or ticket author for that.")
+                        return 0
+
+                elif ticket[2] != message.server.id and message.author.id not in bot_admins:
                     await client.send_message(message.channel, "This ticket is from an other server.")
                     return 0
 
-            if ticket['closed']:
+            if ticket[5] == 1:
                 await client.send_message(message.channel, "Ticket is already closed.")
                 return 0
 
-            ticket['closed'] = True
-            jPoints.ticket.set(content, ticket)
+            sqlib.tickets.update(content, {'closed': 1})
             await client.send_message(message.channel, "Ticket closed.")
             await client.send_message(channel, "{0} just closed ticket #{1}".format(message.author.mention, content))
 
@@ -342,30 +358,32 @@ async def on_message(message):
             await client.send_message(message.channel, embed=help_embed)
             return 0
 
-        try:
-            ticket_nr = content.split(' ')[0]
-            ticket = jPoints.ticket.get(ticket_nr)
-        except KeyError:
+        ticket_nr = content.split(' ')[0]
+        ticket = sqlib.tickets.get(ticket_nr)
+
+        if ticket is None:
             await client.send_message(message.channel, "Given ticket can't be found.")
             return 0
 
-        if ticket['closed']:
+        if ticket[5] == 1:
             await client.send_message(message.channel, "This ticket is closed.")
             return 0
 
-        if ticket['Author'] != message.author.id:
+        if ticket[1] != message.author.id:
             await client.send_message(message.channel, "You have to be ticket author for that.")
             return 0
 
         content = content.replace(ticket_nr, '')
 
         title = time.strftime('%d.%m.%y %H:%M')
-        ticket[title] = content
-        jPoints.ticket.set(ticket_nr, ticket)
+        added_dict = json.loads(ticket[4])
+        added_dict[title] = content
+
+        sqlib.tickets.update(ticket_nr, {'added': str(added_dict)})
 
         await client.send_message(message.channel, "Info added.")
 
-        channel_id = str(jPoints.channel.get(message.server.id))
+        channel_id = str(sqlib.servers.get(ticket_nr, 'channel')[0])
         channel = client.get_channel(channel_id)
 
         ticket_embed = discord.Embed(
@@ -405,7 +423,7 @@ async def on_message(message):
             await client.send_message(message.channel, "You have to mention the channel.")
             return 0
 
-        jPoints.channel.set(message.server.id, channel_id)
+        sqlib.servers.update(message.server.id, {'channel': channel_id})
 
         try:
             await client.add_reaction(message, "✅")
@@ -467,7 +485,7 @@ async def on_message(message):
             await client.send_message(message.channel, "The prefix has to be **one** character.")
             return 0
 
-        jPoints.prefix.set(message.server.id, content)
+        sqlib.servers.update(message.server.id, {'prefix': content})
 
         await client.send_message(message.channel, "Okay, new prefix is `{0}`.".format(content))
 
@@ -492,7 +510,8 @@ async def on_message(message):
 
 @client.event
 async def on_server_join(server):
-    jPoints.prefix.set(server.id, '/')
+    if sqlib.servers.get(server.id) is None:
+        sqlib.servers.add_element(server.id, {'prefix': '/'})
     try:
         await client.send_message(server.owner, "Hey, you or an admin on your server invited me to '{0}'. :smiley:\n"
                                                 "The default prefix is `/`, so type `/help` into a text channel "
