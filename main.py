@@ -12,7 +12,8 @@ helpmsg = {}
 
 helpmsg['ticket'] = "Syntax:\n" \
                     "`{prefix}ticket add [info about the problem]` or\n" \
-                    "`{prefix}ticket [show|close] [ticket number]`\n" \
+                    "`{prefix}ticket show [ticket number]`\n" \
+                    "`{prefix}ticket close [ticket number]; [reason]`\n" \
                     "The info can't be longer than 100 characters.\n" \
                     "A ticket can only be closed by the author or an admin."
 
@@ -35,6 +36,10 @@ helpmsg['channel'] = "This is to set the 'support-channel', where the bot inform
                      "Syntax: `{prefix}channel #[channel name]`\n" \
                      "This command is only usable for admins."
 
+helpmsg['supprole'] = "Admins should set a support-role like this:\n" \
+                      "`{prefix}supprole @[support-role]`\n" \
+                      "This role will be mentioned on ticket events."
+
 helpmsg['prefix'] = "This is to change the command prefix of the bot.\n" \
                     "The default prefix is `/` and the current is `{prefix}`.\n" \
                     "If the current prefix is in complication with the prefixes of other bots on this server, " \
@@ -50,7 +55,7 @@ helpmsg['invite'] = "I'll send you an link to invite me to your server.\n" \
 
 
 def close_invalids():
-    for ticket in sqlib.servers.get_all():
+    for ticket in sqlib.tickets.get_all():
         ticket_nr = ticket[0]
         
         if ticket[5] == 1:
@@ -73,6 +78,8 @@ async def on_ready():
         if sqlib.servers.get(server.id) is None:
             sqlib.servers.add_element(server.id, {'prefix': '/'})
 
+    # print(list(map(lambda s: s.name, client.servers)))
+
 
 @client.event
 async def on_message(message):
@@ -87,7 +94,7 @@ async def on_message(message):
 
     prefix = sqlib.servers.get(message.server.id, 'prefix')[0]
 
-    commands = ['tickets', 'ticket', 'addinfo', 'channel', 'help', 'prefix', 'invite']
+    commands = ['tickets', 'ticket', 'addinfo', 'channel', 'supprole', 'help', 'prefix', 'invite']
 
     if message.content.lower().startswith(tuple(map(lambda com: prefix + com, commands))):
         await client.send_typing(message.channel)
@@ -210,7 +217,7 @@ async def on_message(message):
 
         channel_id = str(sqlib.servers.get(message.server.id, 'channel')[0])
         channel = client.get_channel(channel_id)
-        if channel is None:
+        if channel_id == '0':
             await client.send_message(
                 message.channel,
                 "It seems there is no support channel configured. :confused:\n"
@@ -260,7 +267,19 @@ async def on_message(message):
                 value=content
             )
 
-            await client.send_message(channel, embed=ticket_embed)
+            supprole_id = sqlib.servers.get(message.server.id, 'role')[0]
+            if supprole_id != '0':
+                print(supprole_id)
+                supprole = discord.utils.find(lambda r: r.id == supprole_id, message.server.roles)
+
+                if supprole is None:
+                    await client.send_message(message.channel, "It seems like the support-role doesn't exist anymore. "
+                                                               ":confused:")
+                    return 0
+                await client.send_message(channel, supprole.mention, embed=ticket_embed)
+
+            else:
+                await client.send_message(channel, embed=ticket_embed)
             await client.send_message(message.channel, "Ticket created :white_check_mark: \n"
                                                        "Your ticket has the number {0}.".format(ticket_nr))
 
@@ -268,7 +287,7 @@ async def on_message(message):
             content = content[5:]
             close_invalids()
 
-            ticket = sqlib.tickets.get(content)
+            ticket = list(sqlib.tickets.get(content))
 
             if ticket is None:
                 await client.send_message(message.channel, "Given ticket can't be found.")
@@ -289,7 +308,7 @@ async def on_message(message):
             server = client.get_server(ticket[2])
             ticket[2] = server.name
 
-            added_dict = json.loads(ticket[4])
+            added_dict = json.loads(ticket[4].replace("'", '"'))
             ticket[4] = ""
             for date in added_dict:
                 ticket[4] += "**{date}:** {info}\n".format(date=date, info=added_dict[date])
@@ -314,11 +333,21 @@ async def on_message(message):
 
         if content.lower().startswith("close"):
             content = content[6:]
+            splited = content.split(';')
+            if len(splited) > 1:
+                closemsg = splited[1]
+                content = splited[0]
+            else:
+                closemsg = ""
 
             ticket = sqlib.tickets.get(content)
 
             if ticket is None:
                 await client.send_message(message.channel, "Given ticket can't be found.")
+                return 0
+
+            if ticket[5] == 1:
+                await client.send_message(message.channel, "Ticket is already closed.")
                 return 0
 
             if ticket[1] != message.author.id:
@@ -331,20 +360,42 @@ async def on_message(message):
                             break
 
                     if not is_supporter:
-                        await client.send_message(message.channel, "You have to be admin or ticket author for that.")
+                        await client.send_message(message.channel, "You have to be admin, supporter or "
+                                                                   "ticket author for that.")
                         return 0
 
                 elif ticket[2] != message.server.id and message.author.id not in bot_admins:
                     await client.send_message(message.channel, "This ticket is from an other server.")
                     return 0
 
-            if ticket[5] == 1:
-                await client.send_message(message.channel, "Ticket is already closed.")
-                return 0
+                msg_to_user = "**Hey, {0} just closed your ticket:** \n{1}".format(message.author.mention, closemsg)
+                ticketauthor = await client.get_user_info(ticket[1])
+                await client.send_message(ticketauthor, msg_to_user)
 
             sqlib.tickets.update(content, {'closed': 1})
             await client.send_message(message.channel, "Ticket closed.")
-            await client.send_message(channel, "{0} just closed ticket #{1}".format(message.author.mention, content))
+
+            channel_id = str(sqlib.servers.get(sqlib.tickets.get(content, 'server')[0], 'channel')[0])
+            channel = client.get_channel(channel_id)
+
+            if channel is None:
+                await client.send_message(message.channel, "There is no support channel on the server.")
+                return 0
+
+            suppmsg = "**{0} just closed ticket #{1}**: \n{2}".format(message.author.mention, content, closemsg)
+
+            supprole_id = sqlib.servers.get(message.server.id, 'role')[0]
+            if supprole_id != '0':
+                supprole = discord.utils.find(lambda r: r.id == supprole_id, message.server.roles)
+
+                if supprole is None:
+                    await client.send_message(message.channel, "It seems like the support-role doesn't exist anymore. "
+                                                               ":confused:")
+                    return 0
+                await client.send_message(channel, supprole.mention + '\n' + suppmsg)
+
+            else:
+                await client.send_message(channel, suppmsg)
 
     elif message.content.lower().startswith(prefix + 'addinfo'):
         content = message.content[9:]
@@ -376,15 +427,15 @@ async def on_message(message):
         content = content.replace(ticket_nr, '')
 
         title = time.strftime('%d.%m.%y %H:%M')
-        added_dict = json.loads(ticket[4])
+        added_dict = json.loads(ticket[4].replace("'", '"'))
         added_dict[title] = content
 
-        sqlib.tickets.update(ticket_nr, {'added': str(added_dict)})
-
-        await client.send_message(message.channel, "Info added.")
-
-        channel_id = str(sqlib.servers.get(ticket_nr, 'channel')[0])
+        channel_id = str(sqlib.servers.get(message.server.id, 'channel')[0])
         channel = client.get_channel(channel_id)
+
+        if channel is None:
+            await client.send_message(message.channel, ":hushed: I can't find the support-channel anymore.")
+            return 0
 
         ticket_embed = discord.Embed(
             title="New information:",
@@ -395,11 +446,23 @@ async def on_message(message):
             value=content
         )
 
-        await client.send_message(
-            channel,
-            "{0} just added info to ticket #{1}".format(message.author.mention, ticket_nr),
-            embed=ticket_embed
-        )
+        suppmsg = "{0} just added info to ticket #{1}".format(message.author.mention, ticket_nr)
+
+        supprole_id = sqlib.servers.get(message.server.id, 'role')
+        if supprole_id is not None:
+            supprole = discord.utils.find(lambda r: r.id == supprole_id[0], message.server.roles)
+
+            if supprole is None:
+                await client.send_message(message.channel, "It seems like the support-role doesn't exist anymore. "
+                                                           ":confused:")
+                return 0
+            await client.send_message(channel, suppmsg + ', ' + supprole.mention, embed=ticket_embed)
+
+        else:
+            await client.send_message(channel, suppmsg, embed=ticket_embed)
+
+        sqlib.tickets.update(ticket_nr, {'added': str(added_dict)})
+        await client.send_message(message.channel, "Info added.")
 
     elif message.content.lower().startswith(prefix + "channel"):
         content = message.content.split(" ")[1]
@@ -430,6 +493,36 @@ async def on_message(message):
         except discord.errors.Forbidden:
             pass
 
+    elif message.content.lower().startswith(prefix + 'supprole'):
+        content = message.content[10:]
+
+        if content == 'help':
+            help_embed = discord.Embed(
+                title='Support role',
+                description=helpmsg['supprole'].format(prefix=prefix),
+                color=0x37ceb2
+            )
+            await client.send_message(message.channel, embed=help_embed)
+            return 0
+
+        if (not message.author.server_permissions.administrator) and (message.author.id not in bot_admins):
+            await client.send_message(message.channel, "You have to be admin for that.")
+            return 0
+
+        roles = message.role_mentions
+
+        if len(roles) == 0:
+            await client.send_message(message.channel, "You have to mention the role.")
+            return 0
+
+        else:
+            sqlib.servers.update(message.server.id, {'role': roles[0].id})
+
+            try:
+                await client.add_reaction(message, "✅")
+            except discord.errors.Forbidden:
+                pass
+
     elif message.content.lower().startswith(prefix + 'help'):
         content = message.content[6:]
 
@@ -451,7 +544,8 @@ async def on_message(message):
         for cmd in helpmsg:
             help_embed.add_field(
                 name=cmd,
-                value=helpmsg[cmd].format(prefix=prefix)
+                value=helpmsg[cmd].format(prefix=prefix),
+                inline=False
             )
 
         if message.author.server_permissions.administrator or message.author.id in bot_admins:
@@ -518,9 +612,10 @@ async def on_server_join(server):
                                                 "on the server to see what you "
                                                 "(or rather I) can do.".format(server.name))
 
-        await client.send_message(server.default_channel, "Hey, I'm glad to be here. "
-                                                          "Hopefully I'll be helpful :smiley:.\n"
-                                                          "Type `/help` to see all available commands.")
+        if server.default_channel is not None:
+            await client.send_message(server.default_channel, "Hey, I'm glad to be here. "
+                                                              "Hopefully I'll be helpful :smiley:.\n"
+                                                              "Type `/help` to see all available commands.")
     except discord.errors.Forbidden:
         pass
 

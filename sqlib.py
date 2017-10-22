@@ -3,7 +3,7 @@ import sqlite3
 
 class Table:
     def __init__(self, table, columns: tuple):
-        self.conn = sqlite3.connect('copied_data.db')
+        self.conn = sqlite3.connect('data.db')
         self.c = self.conn.cursor()
         self.table = table
         self.columns = columns
