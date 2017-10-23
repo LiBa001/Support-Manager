@@ -3,6 +3,7 @@ import sqlib
 import re
 import time
 import json
+import urllib.request
 
 client = discord.Client()
 
@@ -69,6 +70,33 @@ def close_invalids():
     return sqlib.tickets.get_all()
 
 
+def post_to_dbotsorg():
+    count_json = json.dumps({
+        "server_count": len(client.servers)
+    })
+
+    # Resolve HTTP redirects
+    dbotsorg_redirect_url = urllib.request.urlopen(
+        "https://discordbots.org/api/bots/{0}/stats".format(client.user.id)
+    ).geturl()
+
+    # Construct request and post server count
+    dbotsorg_req = urllib.request.Request(dbotsorg_redirect_url)
+
+    dbotsorg_req.add_header(
+        "Content-Type",
+        "application/json"
+    )
+
+    dbotsorg_req.add_header(
+        "Authorization",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjM2MDgwMTg1OTQ2MTQ0NzcwMCIsImJvdCI6"  # API token
+        "dHJ1ZSwiaWF0IjoxNTA4NzY0NDk1fQ.EvZ5kvTUP7r1OguZC_3gTiXxrqQitoAgQ2KLKM-4JZ0"
+    )
+
+    urllib.request.urlopen(dbotsorg_req, count_json.encode("ascii"))
+
+
 @client.event
 async def on_ready():
     print(client.user.name)
@@ -79,6 +107,7 @@ async def on_ready():
             sqlib.servers.add_element(server.id, {'prefix': '/'})
 
     # print(list(map(lambda s: s.name, client.servers)))
+    post_to_dbotsorg()
 
 
 @client.event
@@ -368,7 +397,9 @@ async def on_message(message):
                     await client.send_message(message.channel, "This ticket is from an other server.")
                     return 0
 
-                msg_to_user = "**Hey, {0} just closed your ticket:** \n{1}".format(message.author.mention, closemsg)
+                msg_to_user = "**Hey, {0} just closed your ticket #{1}:** \n{2}".format(message.author.mention,
+                                                                                        ticket[0],
+                                                                                        closemsg)
                 ticketauthor = await client.get_user_info(ticket[1])
                 await client.send_message(ticketauthor, msg_to_user)
 
@@ -604,6 +635,7 @@ async def on_message(message):
 
 @client.event
 async def on_server_join(server):
+    post_to_dbotsorg()
     if sqlib.servers.get(server.id) is None:
         sqlib.servers.add_element(server.id, {'prefix': '/'})
     try:
