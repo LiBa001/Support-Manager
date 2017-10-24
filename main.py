@@ -49,7 +49,7 @@ helpmsg['prefix'] = "This is to change the command prefix of the bot.\n" \
                     "`{prefix}prefix [new prefix]`"
 
 helpmsg['info'] = "Shows information about the bot and more.\n" \
-                  "Just type: `{prefix}info` or {prefix}about"
+                  "Just type: `{prefix}info` or `{prefix}about`!"
 
 helpmsg['help'] = "`{prefix}help` shows this help message.\n" \
                   "Type `help` after any command to see the command-specific help-page!\n" \
@@ -642,7 +642,7 @@ async def on_message(message):
         if message.content[6:] == "help" or message.content[7:] == "help":
             help_embed = discord.Embed(
                 title="Info/About",
-                description=helpmsg['info'],
+                description=helpmsg['info'].format(prefix=prefix),
                 color=0x37ceb2
             )
             await client.send_message(message.channel, embed=help_embed)
