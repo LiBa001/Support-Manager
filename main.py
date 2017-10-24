@@ -4,6 +4,7 @@ import re
 import time
 import json
 import urllib.request
+import asyncio
 
 client = discord.Client()
 
@@ -46,6 +47,9 @@ helpmsg['prefix'] = "This is to change the command prefix of the bot.\n" \
                     "If the current prefix is in complication with the prefixes of other bots on this server, " \
                     "an **admin** can change it like this:\n" \
                     "`{prefix}prefix [new prefix]`"
+
+helpmsg['info'] = "Shows information about the bot and more.\n" \
+                  "Just type: `{prefix}info` or {prefix}about"
 
 helpmsg['help'] = "`{prefix}help` shows this help message.\n" \
                   "Type `help` after any command to see the command-specific help-page!\n" \
@@ -123,7 +127,7 @@ async def on_message(message):
 
     prefix = sqlib.servers.get(message.server.id, 'prefix')[0]
 
-    commands = ['tickets', 'ticket', 'addinfo', 'channel', 'supprole', 'help', 'prefix', 'invite']
+    commands = ['tickets', 'ticket', 'addinfo', 'channel', 'supprole', 'help', 'prefix', 'invite', 'info', 'about']
 
     if message.content.lower().startswith(tuple(map(lambda com: prefix + com, commands))):
         await client.send_typing(message.channel)
@@ -634,6 +638,64 @@ async def on_message(message):
             "https://discordapp.com/oauth2/authorize?client_id=360801859461447700&scope=bot&permissions=19456"
         )
 
+    elif message.content.lower().startswith((prefix + 'info', prefix + 'about')):
+        if message.content[6:] == "help" or message.content[7:] == "help":
+            help_embed = discord.Embed(
+                title="Info/About",
+                description=helpmsg['info'],
+                color=0x37ceb2
+            )
+            await client.send_message(message.channel, embed=help_embed)
+            return 0
+
+        infotext = discord.Embed(
+            title="Support-Manager",
+            description="About the bot.",
+            color=0x37ceb2,
+            url="https://liba001.github.io/Support-Manager/"
+        )
+        infotext.set_author(
+            name="Linus Bartsch | LiBa01#8817",
+            url="https://liba001.github.io/",
+            icon_url="https://avatars0.githubusercontent.com/u/30984789?s=460&v=4"
+        )
+        infotext.set_thumbnail(
+            url="https://images.discordapp.net/avatars/360801859461447700/695877fa3289fae03ff5770e7067e8c6.png?size=512"
+        )
+        infotext.add_field(
+            name="Developer",
+            value="Name: **Linus Bartsch**\n"
+                  "Discord: **LiBa01#8817**\n"
+                  "GitHub: [LiBa001](https://github.com/LiBa001)\n"
+                  "I'm also at [Discordbots.org](https://discordbots.org/user/269959141508775937)\n"
+                  "*Concept idea by **MrBlack#8359***",
+            inline=True
+        )
+        infotext.add_field(
+            name="Developed in:",
+            value="Language: **Python3.6**\n"
+                  "Library: **discord.py** (0.16.8)\n"
+        )
+        infotext.add_field(
+            name="Commands",
+            value="Type `{0}help` to get all commands.\n"
+                  "Join the [Official Support Server](https://discord.gg/z3X3uN4) "
+                  "if you have any questions or suggestions.".format(prefix)
+        )
+        infotext.add_field(
+            name="Stats",
+            value="Server count: **{0}**\n"
+                  "Uptime: **{1}** hours, **{2}** minutes".format(len(client.servers), up_hours, up_minutes)
+        )
+        infotext.set_footer(
+            text="Special thanks to MaxiHuHe04#8905 who supported me a few times."
+        )
+
+        await client.send_message(message.channel, embed=infotext)
+
+    elif client.user in message.mentions:
+        await client.send_message(message.channel, "Type `{0}help` to see available commands.".format(prefix))
+
 
 @client.event
 async def on_server_join(server):
@@ -654,4 +716,20 @@ async def on_server_join(server):
         pass
 
 
+async def uptime_count():
+    await client.wait_until_ready()
+    global up_hours
+    global up_minutes
+    up_hours = 0
+    up_minutes = 0
+
+    while not client.is_closed:
+        await asyncio.sleep(60)
+        up_minutes += 1
+        if up_minutes == 60:
+            up_minutes = 0
+            up_hours += 1
+
+
+client.loop.create_task(uptime_count())
 client.run('BOT-TOKEN')  # TODO: insert token
