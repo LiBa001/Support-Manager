@@ -316,11 +316,13 @@ async def on_message(message):
             content = content[5:]
             close_invalids()
 
-            ticket = list(sqlib.tickets.get(content))
+            ticket = sqlib.tickets.get(content)
 
             if ticket is None:
                 await client.send_message(message.channel, "Given ticket can't be found.")
                 return 0
+            else:
+                ticket = list(ticket)  # change tuple to list, to change the values
 
             if ticket[5] == 1:
                 await client.send_message(message.channel, "This ticket is closed.")
@@ -496,7 +498,7 @@ async def on_message(message):
         await client.send_message(message.channel, "Info added.")
 
     elif message.content.lower().startswith(prefix + "channel"):
-        content = message.content.split(" ")[1]
+        content = message.content[9:]
 
         if content == 'help':
             help_embed = discord.Embed(
