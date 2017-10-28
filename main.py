@@ -167,13 +167,18 @@ async def on_message(message):
 
                 author = await client.get_user_info(ticket[1])
 
+                if author in message.server.members:
+                    author = author.mention
+                else:
+                    author = author.name
+
                 server = client.get_server(ticket[2])
 
                 tickets_embed.add_field(
                     name="#" + ticket_nr,
                     value="**Author:** {0}\n"
                           "**Info:** {1}\n"
-                          "**Server:** *{2}*".format(author.mention, ticket[3], server.name),
+                          "**Server:** *{2}*".format(author, ticket[3], server.name),
                     inline=False
                 )
 
