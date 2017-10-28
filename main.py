@@ -74,31 +74,33 @@ def close_invalids():
     return sqlib.tickets.get_all()
 
 
-def post_to_dbotsorg():
-    count_json = json.dumps({
-        "server_count": len(client.servers)
-    })
+def post_to_apis():
+    domains = {
+        'discordbots.org': 'API-TOKEN',
+        'bots.discord.pw': 'API-TOKEN'
+    }
+    for domain in domains:
+        count_json = json.dumps({
+            "server_count": len(client.servers)
+        })
 
-    # Resolve HTTP redirects
-    dbotsorg_redirect_url = urllib.request.urlopen(
-        "https://discordbots.org/api/bots/{0}/stats".format(client.user.id)
-    ).geturl()
+        # Resolve HTTP redirects
+        api_redirect_url = "https://{0}/api/bots/{1}/stats".format(domain, client.user.id)
 
-    # Construct request and post server count
-    dbotsorg_req = urllib.request.Request(dbotsorg_redirect_url)
+        # Construct request and post server count
+        api_req = urllib.request.Request(api_redirect_url)
 
-    dbotsorg_req.add_header(
-        "Content-Type",
-        "application/json"
-    )
+        api_req.add_header(
+            "Content-Type",
+            "application/json"
+        )
 
-    dbotsorg_req.add_header(
-        "Authorization",
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjM2MDgwMTg1OTQ2MTQ0NzcwMCIsImJvdCI6"  # API token
-        "dHJ1ZSwiaWF0IjoxNTA4NzY0NDk1fQ.EvZ5kvTUP7r1OguZC_3gTiXxrqQitoAgQ2KLKM-4JZ0"
-    )
+        api_req.add_header(
+            "Authorization",
+            domains[domain]
+        )
 
-    urllib.request.urlopen(dbotsorg_req, count_json.encode("ascii"))
+        urllib.request.urlopen(api_req, count_json.encode("ascii"))
 
 
 @client.event
@@ -111,7 +113,7 @@ async def on_ready():
             sqlib.servers.add_element(server.id, {'prefix': '/'})
 
     # print(list(map(lambda s: s.name, client.servers)))
-    post_to_dbotsorg()
+    post_to_apis()
 
 
 @client.event
@@ -685,7 +687,8 @@ async def on_message(message):
         infotext.add_field(
             name="Stats",
             value="Server count: **{0}**\n"
-                  "Uptime: **{1}** hours, **{2}** minutes".format(len(client.servers), up_hours, up_minutes)
+                  "Uptime: **{1}** hours, **{2}** minutes\n"
+                  "Member count: **{3}**".format(len(client.servers), up_hours, up_minutes, len(list(client.get_all_members())))
         )
         infotext.set_footer(
             text="Special thanks to MaxiHuHe04#8905 who supported me a few times."
@@ -699,7 +702,7 @@ async def on_message(message):
 
 @client.event
 async def on_server_join(server):
-    post_to_dbotsorg()
+    post_to_apis()
     if sqlib.servers.get(server.id) is None:
         sqlib.servers.add_element(server.id, {'prefix': '/'})
     try:
@@ -714,6 +717,11 @@ async def on_server_join(server):
                                                               "Type `/help` to see all available commands.")
     except discord.errors.Forbidden:
         pass
+
+
+@client.event
+async def on_server_remove(server):
+    post_to_apis()
 
 
 async def uptime_count():
