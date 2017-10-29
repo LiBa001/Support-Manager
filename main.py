@@ -151,6 +151,7 @@ async def on_message(message):
             return 0
 
         tickets = close_invalids()
+        tickets = list(filter(lambda t: t[5] == 0, tickets))
 
         if content.lower().startswith('all'):
             tickets_embed = discord.Embed(
@@ -161,9 +162,6 @@ async def on_message(message):
 
             for ticket in tickets:
                 ticket_nr = ticket[0]
-
-                if ticket[5] == 1:
-                    continue
 
                 author = await client.get_user_info(ticket[1])
 
@@ -189,11 +187,11 @@ async def on_message(message):
                 color=0x37ceb2
             )
 
+            server_id = message.server.id
+            tickets = list(filter(lambda t: t[2] == server_id, tickets))
+
             for ticket in tickets:
                 ticket_nr = ticket[0]
-
-                if ticket[5] == 1 or ticket[2] != message.server.id:
-                    continue
 
                 author = await client.get_user_info(ticket[1])
 
