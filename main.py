@@ -208,6 +208,11 @@ async def on_message(message):
             return 0
 
         else:
+            if len(message.mentions) == 0:
+                await client.send_message(message.channel,
+                                          "Type `{prefix}tickets help` to see how it works.".format(prefix=prefix))
+                return 0
+            
             member = message.mentions[0]
 
             tickets_embed = discord.Embed(
