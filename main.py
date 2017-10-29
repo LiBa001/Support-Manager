@@ -202,17 +202,12 @@ async def on_message(message):
                     inline=False
                 )
 
-        elif len(content) == 0:
+        elif len(content) == 0 or len(message.mentions) == 0:
             await client.send_message(message.channel, "Which tickets?\n"
                                                        "Type `{0}tickets help` to see how it works.".format(prefix))
             return 0
 
         else:
-            if len(message.mentions) == 0:
-                await client.send_message(message.channel,
-                                          "Type `{prefix}tickets help` to see how it works.".format(prefix=prefix))
-                return 0
-            
             member = message.mentions[0]
 
             tickets_embed = discord.Embed(
