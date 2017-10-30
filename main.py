@@ -558,7 +558,7 @@ async def on_message(message):
             return 0
 
         if content.startswith('remove'):
-            sqlib.servers.update(message.server.id, {'supprole': '0'})
+            sqlib.servers.update(message.server.id, {'role': '0'})
 
         else:
             roles = message.role_mentions
