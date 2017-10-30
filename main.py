@@ -16,8 +16,12 @@ helpmsg['ticket'] = "Syntax:\n" \
                     "`{prefix}ticket add [info about the problem]` or\n" \
                     "`{prefix}ticket show [ticket number]`\n" \
                     "`{prefix}ticket close [ticket number]; [reason]`\n" \
-                    "The info can't be longer than 100 characters.\n" \
-                    "A ticket can only be closed by the author or an admin."
+                    "The info can't be longer than 100 characters and not shorter than 10.\n" \
+                    "A ticket can only be closed by the author or an admin.\n" \
+                    "**Please __don't__ abuse tickets for normal communication or to offend.\n" \
+                    "It's allowed to create one or two test tickets, " \
+                    "but you have to __delete them__ after one day at the latest.**\n" \
+                    "Generally, __think of closing tickets__, when the problem is solved."
 
 helpmsg['tickets'] = "It's to see all tickets of . . .\n" \
                      ". . . every server:\n" \
@@ -40,7 +44,8 @@ helpmsg['channel'] = "This is to set the 'support-channel', where the bot inform
 
 helpmsg['supprole'] = "Admins should set a support-role like this:\n" \
                       "`{prefix}supprole @[support-role]`\n" \
-                      "This role will be mentioned on ticket events."
+                      "This role will be mentioned on ticket events.\n" \
+                      "To remove it type: `{prefix}supprole remove`."
 
 helpmsg['prefix'] = "This is to change the command prefix of the bot.\n" \
                     "The default prefix is `/` and the current is `{prefix}`.\n" \
@@ -276,9 +281,10 @@ async def on_message(message):
                                                            "Please don't make the info-text longer than 100 chars!")
                 return 0
 
-            elif len(content) == 0:
+            elif len(content) < 10:
                 await client.send_message(message.channel, "Whats your problem? "
-                                                           "If you don't tell it, nobody can help you.")
+                                                           "If you don't tell it, nobody can help you.\n"
+                                                           "Try to describe it!")
                 return 0
 
             ticket_nr = str(len(sqlib.tickets.get_all())+1)
@@ -551,19 +557,23 @@ async def on_message(message):
             await client.send_message(message.channel, "You have to be admin for that.")
             return 0
 
-        roles = message.role_mentions
-
-        if len(roles) == 0:
-            await client.send_message(message.channel, "You have to mention the role.")
-            return 0
+        if content.startswith('remove'):
+            sqlib.servers.update(message.server.id, {'supprole': '0'})
 
         else:
-            sqlib.servers.update(message.server.id, {'role': roles[0].id})
+            roles = message.role_mentions
 
-            try:
-                await client.add_reaction(message, "✅")
-            except discord.errors.Forbidden:
-                pass
+            if len(roles) == 0:
+                await client.send_message(message.channel, "You have to mention the role.")
+                return 0
+
+            else:
+                sqlib.servers.update(message.server.id, {'role': roles[0].id})
+
+        try:
+            await client.add_reaction(message, "✅")
+        except discord.errors.Forbidden:
+            pass
 
     elif message.content.lower().startswith(prefix + 'help'):
         content = message.content[6:]
