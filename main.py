@@ -24,8 +24,8 @@ helpmsg['ticket'] = "Syntax:\n" \
                     "Generally, __think of closing tickets__, when the problem is solved."
 
 helpmsg['tickets'] = "It's to see all tickets of . . .\n" \
-                     ". . . every server:\n" \
-                     "  `{prefix}tickets all`\n" \
+                     "~~. . . every server:~~ *(no longer available)*\n" \
+                     "  ~~`{prefix}tickets all`~~\n" \
                      ". . . this server:\n" \
                      "  `{prefix}tickets here`\n" \
                      ". . . a specific user:\n" \
@@ -158,34 +158,7 @@ async def on_message(message):
         tickets = close_invalids()
         tickets = list(filter(lambda t: t[5] == 0, tickets))
 
-        if content.lower().startswith('all'):
-            tickets_embed = discord.Embed(
-                title="All active tickets.",
-                description="Every ticket of every server.",
-                color=0x37ceb2
-            )
-
-            for ticket in tickets:
-                ticket_nr = ticket[0]
-
-                author = await client.get_user_info(ticket[1])
-
-                if author in message.server.members:
-                    author = author.mention
-                else:
-                    author = author.name
-
-                server = client.get_server(ticket[2])
-
-                tickets_embed.add_field(
-                    name="#" + ticket_nr,
-                    value="**Author:** {0}\n"
-                          "**Info:** {1}\n"
-                          "**Server:** *{2}*".format(author, ticket[3], server.name),
-                    inline=False
-                )
-
-        elif content.lower().startswith('here'):
+        if content.lower().startswith('here'):
             tickets_embed = discord.Embed(
                 title="Active tickets.",
                 description="Every ticket of this server.",
@@ -206,6 +179,18 @@ async def on_message(message):
                           "**Info:** {1}".format(author.mention, ticket[3]),
                     inline=False
                 )
+
+        if content.lower().startswith('all'):
+            await client.send_message(
+                message.channel,
+                "I'm very sorry, but this command doesn't exist anymore.\n"
+                "As you may have recognized in the past, there was a high latency when using it. "
+                "This was caused by the amount of tickets being created on the many servers the bot is member of.\n"
+                "I'm very happy that so many people use this bot, but it's also the reason why I decided to remove "
+                "this command. It maybe come back someday, when I find a way to make it more efficient.\n"
+                "Thanks for your understanding.\n"
+                "~ Linus"
+            )
 
         elif len(content) == 0 or len(message.mentions) == 0:
             await client.send_message(message.channel, "Which tickets?\n"
