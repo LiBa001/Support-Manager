@@ -667,7 +667,9 @@ async def on_message(message):
             value="Name: **Linus Bartsch**\n"
                   "Discord: **LiBa01#8817**\n"
                   "GitHub: [LiBa001](https://github.com/LiBa001)\n"
-                  "I'm also at [Discordbots.org](https://discordbots.org/user/269959141508775937)\n"
+                  "I'm also at [Discordbots.org](https://discordbots.org/user/269959141508775937).\n"
+                  "I'd be very happy if you'd support me on "
+                  "[**Patreon**](https://www.patreon.com/user?u=8320690). :heart:\n"
                   "*Concept idea by **MrBlack#8359***",
             inline=True
         )
