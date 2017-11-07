@@ -158,7 +158,7 @@ async def on_message(message):
         tickets = close_invalids()
         tickets = list(filter(lambda t: t[5] == 0, tickets))
 
-        if content.lower().startswith('here'):
+        elif content.lower().startswith('here'):
             tickets_embed = discord.Embed(
                 title="Active tickets.",
                 description="Every ticket of this server.",
@@ -180,7 +180,7 @@ async def on_message(message):
                     inline=False
                 )
 
-        if content.lower().startswith('all'):
+        elif content.lower().startswith('all'):
             await client.send_message(
                 message.channel,
                 "I'm very sorry, but this command doesn't exist anymore.\n"
