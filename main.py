@@ -158,7 +158,7 @@ async def on_message(message):
         tickets = close_invalids()
         tickets = list(filter(lambda t: t[5] == 0, tickets))
 
-        elif content.lower().startswith('here'):
+        if content.lower().startswith('here'):
             tickets_embed = discord.Embed(
                 title="Active tickets.",
                 description="Every ticket of this server.",
