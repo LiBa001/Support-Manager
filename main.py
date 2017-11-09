@@ -45,7 +45,8 @@ helpmsg['channel'] = "This is to set the 'support-channel', where the bot inform
 helpmsg['supprole'] = "Admins should set a support-role like this:\n" \
                       "`{prefix}supprole @[support-role]`\n" \
                       "This role will be mentioned on ticket events.\n" \
-                      "To remove it type: `{prefix}supprole remove`."
+                      "To remove it type: `{prefix}supprole remove`." \
+                      "**Note:** You have to set the role to be mentionable."
 
 helpmsg['prefix'] = "This is to change the command prefix of the bot.\n" \
                     "The default prefix is `/` and the current is `{prefix}`.\n" \
