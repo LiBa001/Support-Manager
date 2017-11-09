@@ -1,3 +1,4 @@
+![logo icon](https://liba001.github.io/Support-Manager/favicon-96x96.png)
 # Support-Manager wiki
 
 A small overview about the bot's commands.
