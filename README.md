@@ -1,5 +1,7 @@
 # Support-Manager
 
+[![Discord Bots](https://discordbots.org/api/widget/360801859461447700.png)](https://discordbots.org/bot/360801859461447700)
+
 ## english
 ### [Invite it!](https://discordapp.com/oauth2/authorize?client_id=360801859461447700&scope=bot&permissions=19456)
 
