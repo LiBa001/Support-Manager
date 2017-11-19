@@ -1,5 +1,8 @@
-![logo icon](https://liba001.github.io/Support-Manager/favicon-96x96.png)
+[![Discord Bots](https://discordbots.org/api/widget/360801859461447700.png)](https://discordbots.org/bot/360801859461447700)
+
 # Support-Manager wiki
+
+![logo icon](https://liba001.github.io/Support-Manager/favicon-96x96.png)
 
 A small overview about the bot's commands.
 The default [prefix](#prefix) may differ from the prefix used on your server.
