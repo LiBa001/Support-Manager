@@ -1,0 +1,19 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+
+    <h1>{{ user['username'] }}</h1>
+
+    <h2>Servers</h2>
+    <div>
+
+    {% for guild in guilds %}
+        <a href="/servers/{{ guild['id'] }}">
+            <img src="https://cdn.discordapp.com/icons/{{ guild['id'] }}/{{ guild['icon'] }}.png"
+                 title="{{ guild['name'] }}" class="logo" width="80" alt="{{ guild['name'] }}">
+        </a>
+    {% endfor %}
+
+    </div>
+
+{% endblock %}

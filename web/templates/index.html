@@ -1,0 +1,16 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+
+    <h1>Home</h1>
+
+    {% if logged_in %}
+        <h2>Welcome back, {{ user['username'] }}!</h2>
+    {% endif %}
+
+
+    <a href="https://discordapp.com/oauth2/authorize?client_id=360801859461447700&scope=bot&permissions=19456" target="_blank">
+        Invite the bot to your server!
+    </a>
+
+{% endblock %}

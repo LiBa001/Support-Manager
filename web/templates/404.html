@@ -1,0 +1,17 @@
+{% extends 'layout.html' %}
+
+{% block title %}404 - page not found{% endblock %}
+
+{% block body %}
+
+    <div class="center">
+        <h1>Better take this way ;)</h1>
+        <p>And then try again!</p>
+    </div>
+
+    <h1 class="mobile-content">404 - not found</h1>
+    <p class="mobile-content">Go back <a href="/">home</a> and try again!</p>
+
+    <img src="{{ url_for('static', filename='arrow_return.svg') }}" id="arrowback">
+
+{% endblock %}

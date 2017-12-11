@@ -1,0 +1,63 @@
+{% extends 'layout.html' %}
+
+{% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='ticket.css') }}">
+{% endblock %}
+
+{% block body %}
+
+    {% if server == None %}
+
+        <p>You or the bot aren't a member of this server.</p>
+
+    {% else %}
+
+        <h1>
+            <img src="https://cdn.discordapp.com/icons/{{ server['id'] }}/{{ server['icon'] }}.png" class="icon" alt="">
+            {{ server['name'] }}
+        </h1>
+
+        <h2>Open tickets</h2>
+
+        {% if tickets|length == 0 %}
+            <p>No open tickets.</p>
+        {% else %}
+
+                {% for ticket in tickets %}
+                    {% set author=authors[ticket[1]] %}
+
+                    <div class="ticket">
+
+                    <h3>#{{ ticket[0] }}</h3>
+                    <ul>
+                        <li>
+                            <label>Author:</label>
+                            <img src="https://cdn.discordapp.com/avatars/{{ author['id'] }}/{{ author['avatar'] }}.png" alt="" class="icon" id="avatar">
+                            {{ author['username'] }}#{{ author['discriminator'] }}
+                        </li>
+                        <li><label>Info:</label> {{ ticket[3] }}</li>
+                    </ul>
+                    <div class="added">
+                        <label>Added:</label>
+                        <ol>
+                            {% set added_dict = to_json(ticket[4]) %}
+
+                            {% if added_dict|length == 0 %}
+                                <i>Nothing added.</i>
+                            {% else %}
+                                {% for added in added_dict %}
+                                    <li>{{ added_dict[added] }}</li>
+                                {% endfor %}
+                            {% endif %}
+                        </ol>
+                    </div>
+
+                    </div>
+
+                {% endfor %}
+
+        {% endif %}
+
+    {% endif %}
+
+{% endblock %}

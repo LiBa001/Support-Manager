@@ -3,7 +3,8 @@ import sqlite3
 
 class Table:
     def __init__(self, table, columns: tuple):
-        self.conn = sqlite3.connect('data.db')
+        self.conn = sqlite3.connect('C:\\Users\\Linus\\PycharmProjects\\Support-Manager\\data.db',
+                                    check_same_thread=False)
         self.c = self.conn.cursor()
         self.table = table
         self.columns = columns

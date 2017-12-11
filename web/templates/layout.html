@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta id="meta" name="viewport" content="width=device-width; initial-scale=1.0" />
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block head %}
+    {% endblock %}
+    <title>{% block title %}Support-Manager{% endblock %}</title>
+</head>
+<body>
+
+{% if user.get('code', 1) == 1 %}
+    {% set logged_in = True %}
+{% else %}
+    {% set logged_in = False %}
+{% endif %}
+
+
+<header>
+    <div class="container">
+
+        <a href="/"><img src="{{ url_for('static', filename='logo.png') }}" alt="logo" class="icon logo"></a>
+
+        <nav class="site-nav">
+            <ul>
+                <li><a href="/">Home</a></li>
+
+                {% if logged_in %}
+                    <li>
+                        <a href="/me">
+                            {{ user['username'] }}
+                            <img src="https://cdn.discordapp.com/avatars/{{ user['id'] }}/{{ user['avatar'] }}.png" alt="avatar" class="icon" id="avatar">
+                        </a>
+                    </li>
+                {% else %}
+                    <li><a href="/login">LogIn</a></li>
+                {% endif %}
+
+                <li><a href="/contact">Contact</a></li>
+            </ul>
+        </nav>
+
+        <div class="menu-toggle">
+            <div class="hamburger-top"></div>
+            <div class="hamburger-center"></div>
+            <div class="hamburger-bottom"></div>
+        </div>
+
+    </div>
+</header>
+
+<div class="container">
+    {% block body %}
+    {% endblock %}
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

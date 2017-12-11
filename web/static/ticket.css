@@ -1,0 +1,30 @@
+
+.ticket {
+    border: solid grey 2px;
+    padding: 1em;
+    margin: 0.6em;
+}
+
+.ticket h3 {
+    color: var(--color);
+}
+
+.ticket ul {
+    list-style: none;
+    display: inline-block;
+}
+
+.ticket li {
+    color: #aaa
+}
+
+.ticket label {
+    text-transform: uppercase;
+    color: white;
+}
+
+.ticket .added {
+    display: inline-block;
+    margin-left: 2em;
+    padding: 0.5em;
+}
