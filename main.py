@@ -10,6 +10,8 @@ client = discord.Client()
 
 bot_admins = ['269959141508775937']
 
+spam_protector = {}
+
 helpmsg = {}
 
 helpmsg['ticket'] = "Syntax:\n" \
@@ -139,7 +141,9 @@ async def on_message(message):
 
     if message.content.lower().startswith(tuple(map(lambda com: prefix + com, commands))):
         await client.send_typing(message.channel)
+        remove_message = True
     else:
+        remove_message = False
         if client.user in message.mentions:
             await client.send_message(message.channel, "Type `{0}help` to see available commands.".format(prefix))
         return 0  # Attention to this when adding new commands.
@@ -260,6 +264,15 @@ async def on_message(message):
             return 0
 
         if content.lower().startswith("add"):
+            last_executed = spam_protector.get(message.author.id, time.time() - 60)
+            if last_executed > time.time() - 60:
+                await client.send_message(
+                    message.channel,
+                    ":cool: :arrow_down: "
+                    "You can add your next ticket in {0} seconds. :timer:".format(60 - int(time.time() - last_executed))
+                )
+                return None
+
             content = content[4:].replace('\n', ' ')
 
             if len(content) > 100:
@@ -270,7 +283,7 @@ async def on_message(message):
             elif len(content) < 10:
                 await client.send_message(message.channel, "Whats your problem? "
                                                            "If you don't tell it, nobody can help you.\n"
-                                                           "Try to describe it!")
+                                                           "Try to describe it! *`(min. 10 chars)`*")
                 return 0
 
             ticket_nr = str(len(sqlib.tickets.get_all())+1)
@@ -299,7 +312,6 @@ async def on_message(message):
 
             supprole_id = sqlib.servers.get(message.server.id, 'role')[0]
             if supprole_id != '0':
-                print(supprole_id)
                 supprole = discord.utils.find(lambda r: r.id == supprole_id, message.server.roles)
 
                 if supprole is None:
@@ -312,6 +324,7 @@ async def on_message(message):
                 await client.send_message(channel, embed=ticket_embed)
             await client.send_message(message.channel, "Ticket created :white_check_mark: \n"
                                                        "Your ticket has the number {0}.".format(ticket_nr))
+            spam_protector[message.author.id] = time.time()
 
         if content.lower().startswith("show"):
             content = content[5:]
@@ -484,16 +497,16 @@ async def on_message(message):
 
         supprole_id = sqlib.servers.get(message.server.id, 'role')
         if supprole_id is not None:
-            supprole = discord.utils.find(lambda r: r.id == supprole_id[0], message.server.roles)
+            if supprole_id[0] != '0':
+                supprole = discord.utils.find(lambda r: r.id == supprole_id[0], message.server.roles)
 
-            if supprole is None:
-                await client.send_message(message.channel, "It seems like the support-role doesn't exist anymore. "
-                                                           ":confused:")
-                return 0
-            await client.send_message(channel, suppmsg + ', ' + supprole.mention, embed=ticket_embed)
+                if supprole is None:
+                    await client.send_message(message.channel, "It seems like the support-role doesn't exist anymore. "
+                                                               ":confused:")
+                    return 0
+                suppmsg += ', ' + supprole.mention
 
-        else:
-            await client.send_message(channel, suppmsg, embed=ticket_embed)
+        await client.send_message(channel, suppmsg, embed=ticket_embed)
 
         sqlib.tickets.update(ticket_nr, {'added': str(added_dict)})
         await client.send_message(message.channel, "Info added.")
@@ -526,6 +539,7 @@ async def on_message(message):
             await client.add_reaction(message, "✅")
         except discord.errors.Forbidden:
             pass
+        remove_message = False
 
     elif message.content.lower().startswith(prefix + 'supprole'):
         content = message.content[10:]
@@ -560,6 +574,7 @@ async def on_message(message):
             await client.add_reaction(message, "✅")
         except discord.errors.Forbidden:
             pass
+        remove_message = False
 
     elif message.content.lower().startswith(prefix + 'help'):
         content = message.content[6:]
@@ -594,6 +609,7 @@ async def on_message(message):
                 await client.add_reaction(message, "✅")
             except discord.errors.Forbidden:
                 pass
+            remove_message = False
 
         await client.send_message(destination, embed=help_embed)
 
@@ -699,6 +715,10 @@ async def on_message(message):
 
     elif client.user in message.mentions:
         await client.send_message(message.channel, "Type `{0}help` to see available commands.".format(prefix))
+
+    client_member = message.server.get_member(client.user.id)
+    if client_member.permissions_in(message.channel).manage_messages and remove_message:
+        await client.delete_message(message)
 
 
 @client.event
