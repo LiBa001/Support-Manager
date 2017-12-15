@@ -384,6 +384,8 @@ async def on_message(message):
                 content = splited[0]
             else:
                 closemsg = ""
+            
+            errormsg = ""
 
             ticket = sqlib.tickets.get(content)
 
@@ -417,10 +419,13 @@ async def on_message(message):
                                                                                         ticket[0],
                                                                                         closemsg)
                 ticketauthor = await client.get_user_info(ticket[1])
-                await client.send_message(ticketauthor, msg_to_user)
+                try:
+                    await client.send_message(ticketauthor, msg_to_user)
+                except discord.Forbidden:
+                    errormsg = ", but user disabled direct messages"
 
             sqlib.tickets.update(content, {'closed': 1})
-            await client.send_message(message.channel, "Ticket closed.")
+            await client.send_message(message.channel, f"Ticket closed{errormsg}.")
 
             channel_id = str(sqlib.servers.get(sqlib.tickets.get(content, 'server')[0], 'channel')[0])
             channel = client.get_channel(channel_id)
