@@ -619,7 +619,7 @@ async def on_message(message):
         await client.send_message(destination, embed=help_embed)
 
     elif message.content.lower().startswith(prefix + 'prefix'):
-        content = message.content[8:]
+        content = message.content[8:].lower()
 
         if content == 'help':
             help_embed = discord.Embed(
