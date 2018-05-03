@@ -8,13 +8,40 @@ class Table:
         self.table = table
         self.columns = columns
 
+    def _to_int(self, values):
+        int_values = []
+
+        if len(values) == 1:
+            skip_first = False
+        else:
+            skip_first = True
+
+        for v in values:
+            try:
+                if skip_first:
+                    skip_first = False
+                    raise ValueError
+
+                int_values.append(int(v))
+
+            except ValueError:
+                int_values.append(v)
+
+        return int_values
+
     def get(self, id_str, columns: str='*'):
         self.c.execute("SELECT {0} FROM {1} WHERE id=:id".format(columns, self.table), {'id': id_str})
-        return self.c.fetchone()
+        return self._to_int(self.c.fetchone())
 
     def get_all(self, columns: str='*'):
         self.c.execute("SELECT {0} FROM {1}".format(columns, self.table))
-        return self.c.fetchall()
+
+        result = []
+
+        for i in self.c.fetchall():
+            result.append(self._to_int(i))
+
+        return result
 
     def add_element(self, id_str, values: dict=None):
         if values is None:

@@ -1,12 +1,11 @@
 import discord
 import sqlib
-import re
 import time
 import json
 import urllib.request
 import asyncio
 
-client = discord.Client()
+client = discord.AutoShardedClient()
 
 bot_admins = ['269959141508775937']
 
@@ -26,9 +25,9 @@ helpmsg['ticket'] = "Syntax:\n" \
                     "Generally, __think of closing tickets__, when the problem is solved."
 
 helpmsg['tickets'] = "It's to see all tickets of . . .\n" \
-                     "~~. . . every server:~~ *(no longer available)*\n" \
+                     "~~. . . every guild:~~ *(no longer available)*\n" \
                      "  ~~`{prefix}tickets all`~~\n" \
-                     ". . . this server:\n" \
+                     ". . . this guild:\n" \
                      "  `{prefix}tickets here`\n" \
                      ". . . a specific user:\n" \
                      "  `{prefix}tickets @[user]`"
@@ -52,7 +51,7 @@ helpmsg['supprole'] = "Admins should set a support-role like this:\n" \
 
 helpmsg['prefix'] = "This is to change the command prefix of the bot.\n" \
                     "The default prefix is `/` and the current is `{prefix}`.\n" \
-                    "If the current prefix is in complication with the prefixes of other bots on this server, " \
+                    "If the current prefix is in complication with the prefixes of other bots on this guild, " \
                     "an **admin** can change it like this:\n" \
                     "`{prefix}prefix [new prefix]`"
 
@@ -63,7 +62,7 @@ helpmsg['help'] = "`{prefix}help` shows this help message.\n" \
                   "Type `help` after any command to see the command-specific help-page!\n" \
                   "For example: `{prefix}ticket help`"
 
-helpmsg['invite'] = "I'll send you an link to invite me to your server.\n" \
+helpmsg['invite'] = "I'll send you an link to invite me to your guild.\n" \
                     "Just type `{prefix}invite`!"
 
 
@@ -74,28 +73,29 @@ def close_invalids():
         if ticket[5] == 1:
             continue
 
-        server = client.get_server(ticket[2])
+        guild = client.get_guild(int(ticket[2]))
         
-        if server is None:
+        if guild is None:
             sqlib.tickets.update(ticket_nr, {'closed': 1})
         
     return sqlib.tickets.get_all()
 
 
 def post_to_apis():
+    """
     domains = {
         'discordbots.org': 'API-TOKEN',
         'bots.discord.pw': 'API-TOKEN'
     }
     for domain in domains:
         count_json = json.dumps({
-            "server_count": len(client.servers)
+            "guild_count": len(client.guilds)
         })
 
         # Resolve HTTP redirects
         api_redirect_url = "https://{0}/api/bots/{1}/stats".format(domain, client.user.id)
 
-        # Construct request and post server count
+        # Construct request and post guild count
         api_req = urllib.request.Request(api_redirect_url)
 
         api_req.add_header(
@@ -109,6 +109,8 @@ def post_to_apis():
         )
 
         urllib.request.urlopen(api_req, count_json.encode("ascii"))
+        """
+    pass
 
 
 @client.event
@@ -116,36 +118,36 @@ async def on_ready():
     print(client.user.name)
     print("--------------")
 
-    for server in client.servers:
-        if sqlib.servers.get(server.id) is None:
-            sqlib.servers.add_element(server.id, {'prefix': '/'})
+    for guild in client.guilds:
+        if sqlib.servers.get(guild.id) is None:
+            sqlib.servers.add_element(guild.id, {'prefix': '/'})
 
-    # print(list(map(lambda s: s.name, client.servers)))
+    # print(list(map(lambda s: s.name, client.guilds)))
     post_to_apis()
 
 
 @client.event
 async def on_message(message):
-    if message.channel.is_private:
+    if isinstance(message.channel, discord.DMChannel):
         if message.author != client.user:
-            await client.send_message(message.channel, "Sorry, I can't help you in a private chat.")
+            await message.channel.send("Sorry, I can't help you in a private chat.")
         return 0
 
-    client_member = message.server.get_member(client.user.id)
+    client_member = message.guild.get_member(client.user.id)
     if not client_member.permissions_in(message.channel).send_messages:
         return 0
 
-    prefix = sqlib.servers.get(message.server.id, 'prefix')[0]
+    prefix = sqlib.servers.get(message.guild.id, 'prefix')[0]
 
     commands = ['tickets', 'ticket', 'addinfo', 'channel', 'supprole', 'help', 'prefix', 'invite', 'info', 'about']
 
     if message.content.lower().startswith(tuple(map(lambda com: prefix + com, commands))):
-        await client.send_typing(message.channel)
+        await message.channel.trigger_typing()
         remove_message = True
     else:
         remove_message = False
         if client.user in message.mentions:
-            await client.send_message(message.channel, "Type `{0}help` to see available commands.".format(prefix))
+            await message.channel.send("Type `{0}help` to see available commands.".format(prefix))
         return 0  # Attention to this when adding new commands.
 
     if message.content.lower().startswith(prefix + 'tickets'):
@@ -157,7 +159,7 @@ async def on_message(message):
                 description=helpmsg['tickets'].format(prefix=prefix),
                 color=0x37ceb2
             )
-            await client.send_message(message.channel, embed=help_embed)
+            await message.channel.send(embed=help_embed)
             return 0
 
         tickets = close_invalids()
@@ -166,12 +168,12 @@ async def on_message(message):
         if content.lower().startswith('here'):
             tickets_embed = discord.Embed(
                 title="Active tickets.",
-                description="Every ticket of this server.",
+                description="Every ticket of this guild.",
                 color=0x37ceb2
             )
 
-            server_id = message.server.id
-            tickets = list(filter(lambda t: t[2] == server_id, tickets))
+            guild_id = message.guild.id
+            tickets = list(filter(lambda t: t[2] == guild_id, tickets))
 
             for ticket in tickets:
                 ticket_nr = ticket[0]
@@ -185,21 +187,8 @@ async def on_message(message):
                     inline=False
                 )
 
-        elif content.lower().startswith('all'):
-            await client.send_message(
-                message.channel,
-                "I'm very sorry, but this command doesn't exist anymore.\n"
-                "As you may have recognized in the past, there was a high latency when using it. "
-                "This was caused by the amount of tickets being created on the many servers the bot is member of.\n"
-                "I'm very happy that so many people use this bot, but it's also the reason why I decided to remove "
-                "this command. It maybe come back someday, when I find a way to make it more efficient.\n"
-                "Thanks for your understanding.\n"
-                "~ Linus"
-            )
-
         elif len(content) == 0 or len(message.mentions) == 0:
-            await client.send_message(message.channel, "Which tickets?\n"
-                                                       "Type `{0}tickets help` to see how it works.".format(prefix))
+            await message.channel.send("Which tickets?\nType `{0}tickets help` to see how it works.".format(prefix))
             return 0
 
         else:
@@ -217,24 +206,24 @@ async def on_message(message):
                 if ticket[5] == 1 or ticket[1] != member.id:
                     continue
 
-                server = client.get_server(ticket[2])
+                guild = client.get_guild(ticket[2])
 
                 tickets_embed.add_field(
                     name="#" + ticket_nr,
                     value="**Info:** {0}\n"
-                          "**Server:** *{1}*".format(ticket[3], server.name),
+                          "**Server:** *{1}*".format(ticket[3], guild.name),
                     inline=False
                 )
 
         if len(tickets_embed.fields) == 0:
-            await client.send_message(message.channel, "There are no active tickets.")
+            await message.channel.send("There are no active tickets.")
             return 0
 
         tickets_embed.set_footer(
             text="To see also the added info of an ticket use the 'ticket show' command."
         )
 
-        await client.send_message(message.channel, embed=tickets_embed)
+        await message.channel.send(embed=tickets_embed)
 
     elif message.content.lower().startswith(prefix + "ticket"):
         content = message.content[8:]
@@ -245,29 +234,27 @@ async def on_message(message):
                 description=helpmsg['ticket'].format(prefix=prefix),
                 color=0x37ceb2
             )
-            await client.send_message(message.channel, embed=help_embed)
+            await message.channel.send(embed=help_embed)
             return 0
 
-        channel_id = str(sqlib.servers.get(message.server.id, 'channel')[0])
-        channel = client.get_channel(channel_id)
+        channel_id = str(sqlib.servers.get(message.guild.id, 'channel')[0])
+        channel = message.guild.get_channel(int(channel_id))
         if channel_id == '0':
-            await client.send_message(
-                message.channel,
+            await message.channel.send(
                 "It seems there is no support channel configured. :confused:\n"
                 "Ask an admin to set one up!"
             )
             return 0
 
         if channel is None:
-            await client.send_message(message.channel, "The configured support channel doesn't exist anymore.\n"
-                                                       "Ask an admin to set up a new one.")
+            await message.channel.send("The configured support channel doesn't exist anymore.\n"
+                                       "Ask an admin to set up a new one.")
             return 0
 
         if content.lower().startswith("add"):
             last_executed = spam_protector.get(message.author.id, time.time() - 60)
             if last_executed > time.time() - 60:
-                await client.send_message(
-                    message.channel,
+                await message.channel.send(
                     ":cool: :arrow_down: "
                     "You can add your next ticket in {0} seconds. :timer:".format(60 - int(time.time() - last_executed))
                 )
@@ -275,20 +262,20 @@ async def on_message(message):
 
             content = content[4:].replace('\n', ' ')
 
-            if len(content) > 100:
-                await client.send_message(message.channel, "Too many characters, no ticket has been created.\n"
-                                                           "Please don't make the info-text longer than 100 chars!")
+            if len(content) > 200:
+                await message.channel.send("Too many characters, no ticket has been created.\n"
+                                           "Please don't make the info-text longer than 200 chars!")
                 return 0
 
             elif len(content) < 10:
-                await client.send_message(message.channel, "Whats your problem? "
-                                                           "If you don't tell it, nobody can help you.\n"
-                                                           "Try to describe it! *`(min. 10 chars)`*")
+                await message.channel.send("Whats your problem? "
+                                           "If you don't tell it, nobody can help you.\n"
+                                           "Try to describe it! *`(min. 10 chars)`*")
                 return 0
 
             ticket_nr = str(len(sqlib.tickets.get_all())+1)
             sqlib.tickets.add_element(ticket_nr, {'author': message.author.id,
-                                                  'server': message.server.id,
+                                                  'server': message.guild.id,
                                                   'info': content,
                                                   'added': "{}",
                                                   'closed': 0})
@@ -310,20 +297,20 @@ async def on_message(message):
                 value=content
             )
 
-            supprole_id = sqlib.servers.get(message.server.id, 'role')[0]
-            if supprole_id != '0':
-                supprole = discord.utils.find(lambda r: r.id == supprole_id, message.server.roles)
+            supprole_id = int(sqlib.servers.get(str(message.guild.id), 'role')[0])
+            if supprole_id != 0:
+                supprole = discord.utils.find(lambda r: r.id == supprole_id, message.guild.roles)
 
                 if supprole is None:
-                    await client.send_message(message.channel, "It seems like the support-role doesn't exist anymore. "
-                                                               ":confused:")
+                    await message.channel.send("It seems like the support-role doesn't exist anymore. "
+                                               ":confused:")
                     return 0
-                await client.send_message(channel, supprole.mention, embed=ticket_embed)
+                await channel.send(supprole.mention, embed=ticket_embed)
 
             else:
-                await client.send_message(channel, embed=ticket_embed)
-            await client.send_message(message.channel, "Ticket created :white_check_mark: \n"
-                                                       "Your ticket has the number {0}.".format(ticket_nr))
+                await channel.send(embed=ticket_embed)
+            await message.channel.send("Ticket created :white_check_mark: \n"
+                                       "Your ticket has the number {0}.".format(ticket_nr))
             spam_protector[message.author.id] = time.time()
 
         if content.lower().startswith("show"):
@@ -333,13 +320,13 @@ async def on_message(message):
             ticket = sqlib.tickets.get(content)
 
             if ticket is None:
-                await client.send_message(message.channel, "Given ticket can't be found.")
+                await message.channel.send("Given ticket can't be found.")
                 return 0
             else:
                 ticket = list(ticket)  # change tuple to list, to change the values
 
             if ticket[5] == 1:
-                await client.send_message(message.channel, "This ticket is closed.")
+                await message.channel.send("This ticket is closed.")
                 return 0
 
             ticket_embed = discord.Embed(
@@ -350,8 +337,8 @@ async def on_message(message):
             author = await client.get_user_info(ticket[1])
             ticket[1] = author.mention
 
-            server = client.get_server(ticket[2])
-            ticket[2] = server.name
+            guild = client.get_guild(ticket[2])
+            ticket[2] = guild.name
 
             added_dict = json.loads(ticket[4].replace("'", '"'))
             ticket[4] = ""
@@ -374,7 +361,7 @@ async def on_message(message):
                 )
                 counter += 1
 
-            await client.send_message(message.channel, embed=ticket_embed)
+            await message.channel.send(embed=ticket_embed)
 
         if content.lower().startswith("close"):
             content = content[6:]
@@ -390,29 +377,29 @@ async def on_message(message):
             ticket = sqlib.tickets.get(content)
 
             if ticket is None:
-                await client.send_message(message.channel, "Given ticket can't be found.")
+                await message.channel.send("Given ticket can't be found.")
                 return 0
 
             if ticket[5] == 1:
-                await client.send_message(message.channel, "Ticket is already closed.")
+                await message.channel.send("Ticket is already closed.")
                 return 0
 
             if ticket[1] != message.author.id:
-                if (not message.author.server_permissions.administrator) and (message.author.id not in bot_admins):
+                if (not message.author.guild_permissions.administrator) and (message.author.id not in bot_admins):
 
                     is_supporter = False
                     for role in message.author.roles:
-                        if role.id == sqlib.servers.get(message.server.id, 'role')[0]:
+                        if role.id == sqlib.servers.get(message.guild.id, 'role')[0]:
                             is_supporter = True
                             break
 
                     if not is_supporter:
-                        await client.send_message(message.channel, "You have to be admin, supporter or "
-                                                                   "ticket author for that.")
+                        await message.channel.send("You have to be admin, supporter or "
+                                                   "ticket author for that.")
                         return 0
 
-                elif ticket[2] != message.server.id and message.author.id not in bot_admins:
-                    await client.send_message(message.channel, "This ticket is from an other server.")
+                elif ticket[2] != message.guild.id and message.author.id not in bot_admins:
+                    await message.channel.send("This ticket is from an other guild.")
                     return 0
 
                 msg_to_user = "**Hey, {0} just closed your ticket #{1}:** \n{2}".format(message.author.mention,
@@ -420,34 +407,34 @@ async def on_message(message):
                                                                                         closemsg)
                 ticketauthor = await client.get_user_info(ticket[1])
                 try:
-                    await client.send_message(ticketauthor, msg_to_user)
+                    await ticketauthor.send(msg_to_user)
                 except discord.Forbidden:
                     errormsg = ", but user disabled direct messages"
 
             sqlib.tickets.update(content, {'closed': 1})
-            await client.send_message(message.channel, f"Ticket closed{errormsg}.")
+            await message.channel.send(f"Ticket closed{errormsg}.")
 
-            channel_id = str(sqlib.servers.get(sqlib.tickets.get(content, 'server')[0], 'channel')[0])
+            channel_id = int(sqlib.servers.get(sqlib.tickets.get(content, 'server')[0], 'channel')[0])
             channel = client.get_channel(channel_id)
 
             if channel is None:
-                await client.send_message(message.channel, "There is no support channel on the server.")
+                await message.channel.send("There is no support channel on the guild.")
                 return 0
 
             suppmsg = "**{0} just closed ticket #{1}**: \n{2}".format(message.author.mention, content, closemsg)
 
-            supprole_id = sqlib.servers.get(message.server.id, 'role')[0]
-            if supprole_id != '0':
-                supprole = discord.utils.find(lambda r: r.id == supprole_id, message.server.roles)
+            supprole_id = int(sqlib.servers.get(str(message.guild.id), 'role')[0])
+            if supprole_id != 0:
+                supprole = discord.utils.find(lambda r: r.id == supprole_id, message.guild.roles)
 
                 if supprole is None:
-                    await client.send_message(message.channel, "It seems like the support-role doesn't exist anymore. "
-                                                               ":confused:")
+                    await message.channel.send("It seems like the support-role doesn't exist anymore. "
+                                               ":confused:")
                     return 0
-                await client.send_message(channel, supprole.mention + '\n' + suppmsg)
+                await channel.send(supprole.mention + '\n' + suppmsg)
 
             else:
-                await client.send_message(channel, suppmsg)
+                await channel.send(suppmsg)
 
     elif message.content.lower().startswith(prefix + 'addinfo'):
         content = message.content[9:]
@@ -458,22 +445,22 @@ async def on_message(message):
                 description=helpmsg['addinfo'].format(prefix=prefix),
                 color=0x37ceb2
             )
-            await client.send_message(message.channel, embed=help_embed)
+            await message.channel.send(embed=help_embed)
             return 0
 
         ticket_nr = content.split(' ')[0]
         ticket = sqlib.tickets.get(ticket_nr)
 
         if ticket is None:
-            await client.send_message(message.channel, "Given ticket can't be found.")
+            await message.channel.send("Given ticket can't be found.")
             return 0
 
         if ticket[5] == 1:
-            await client.send_message(message.channel, "This ticket is closed.")
+            await message.channel.send("This ticket is closed.")
             return 0
 
         if ticket[1] != message.author.id:
-            await client.send_message(message.channel, "You have to be ticket author for that.")
+            await message.channel.send("You have to be ticket author for that.")
             return 0
 
         content = content.replace(ticket_nr, '')
@@ -482,11 +469,11 @@ async def on_message(message):
         added_dict = json.loads(ticket[4].replace("'", '"'))
         added_dict[title] = content
 
-        channel_id = str(sqlib.servers.get(message.server.id, 'channel')[0])
+        channel_id = int(sqlib.servers.get(message.guild.id, 'channel')[0])
         channel = client.get_channel(channel_id)
 
         if channel is None:
-            await client.send_message(message.channel, ":hushed: I can't find the support-channel anymore.")
+            await message.channel.send(":hushed: I can't find the support-channel anymore.")
             return 0
 
         ticket_embed = discord.Embed(
@@ -500,21 +487,21 @@ async def on_message(message):
 
         suppmsg = "{0} just added info to ticket #{1}".format(message.author.mention, ticket_nr)
 
-        supprole_id = sqlib.servers.get(message.server.id, 'role')
+        supprole_id = sqlib.servers.get(message.guild.id, 'role')
         if supprole_id is not None:
             if supprole_id[0] != '0':
-                supprole = discord.utils.find(lambda r: r.id == supprole_id[0], message.server.roles)
+                supprole = discord.utils.find(lambda r: r.id == supprole_id[0], message.guild.roles)
 
                 if supprole is None:
-                    await client.send_message(message.channel, "It seems like the support-role doesn't exist anymore. "
-                                                               ":confused:")
+                    await message.channel.send("It seems like the support-role doesn't exist anymore. "
+                                               ":confused:")
                     return 0
                 suppmsg += ', ' + supprole.mention
 
-        await client.send_message(channel, suppmsg, embed=ticket_embed)
+        await channel.send(suppmsg, embed=ticket_embed)
 
         sqlib.tickets.update(ticket_nr, {'added': str(added_dict)})
-        await client.send_message(message.channel, "Info added.")
+        await message.channel.send("Info added.")
 
     elif message.content.lower().startswith(prefix + "channel"):
         content = message.content[9:]
@@ -525,23 +512,24 @@ async def on_message(message):
                 description=helpmsg['channel'].format(prefix=prefix),
                 color=0x37ceb2
             )
-            await client.send_message(message.channel, embed=help_embed)
+            await message.channel.send(embed=help_embed)
             return 0
 
-        if (not message.author.server_permissions.administrator) and (message.author.id not in bot_admins):
-            await client.send_message(message.channel, "You have to be admin for that.")
+        if (not message.author.guild_permissions.administrator) and (message.author.id not in bot_admins):
+            await message.channel.send("You have to be admin for that.")
             return 0
 
-        channel_id = re.sub(r"<#(\d+)>", r"\1", content)
-
-        if client.get_channel(channel_id) is None:
-            await client.send_message(message.channel, "You have to mention the channel.")
+        if len(message.channel_mentions) == 0:
+            await message.channel.send("You have to mention the channel.")
             return 0
 
-        sqlib.servers.update(message.server.id, {'channel': channel_id})
+        else:
+            channel_id = message.channel_mentions[0].id
+
+        sqlib.servers.update(message.guild.id, {'channel': int(channel_id)})
 
         try:
-            await client.add_reaction(message, "✅")
+            await message.add_reaction("✅")
         except discord.errors.Forbidden:
             pass
         remove_message = False
@@ -555,28 +543,28 @@ async def on_message(message):
                 description=helpmsg['supprole'].format(prefix=prefix),
                 color=0x37ceb2
             )
-            await client.send_message(message.channel, embed=help_embed)
+            await message.channel.send(embed=help_embed)
             return 0
 
-        if (not message.author.server_permissions.administrator) and (message.author.id not in bot_admins):
-            await client.send_message(message.channel, "You have to be admin for that.")
+        if (not message.author.guild_permissions.administrator) and (message.author.id not in bot_admins):
+            await message.channel.send("You have to be admin for that.")
             return 0
 
         if content.startswith('remove'):
-            sqlib.servers.update(message.server.id, {'role': '0'})
+            sqlib.servers.update(message.guild.id, {'role': '0'})
 
         else:
             roles = message.role_mentions
 
             if len(roles) == 0:
-                await client.send_message(message.channel, "You have to mention the role.")
+                await message.channel.send("You have to mention the role.")
                 return 0
 
             else:
-                sqlib.servers.update(message.server.id, {'role': roles[0].id})
+                sqlib.servers.update(message.guild.id, {'role': roles[0].id})
 
         try:
-            await client.add_reaction(message, "✅")
+            await message.add_reaction("✅")
         except discord.errors.Forbidden:
             pass
         remove_message = False
@@ -590,7 +578,7 @@ async def on_message(message):
                 description=helpmsg['help'].format(prefix=prefix),
                 color=0x37ceb2
             )
-            await client.send_message(message.channel, embed=help_embed)
+            await message.channel.send(embed=help_embed)
             return 0
 
         help_embed = discord.Embed(
@@ -606,17 +594,17 @@ async def on_message(message):
                 inline=False
             )
 
-        if message.author.server_permissions.administrator or message.author.id in bot_admins:
+        if message.author.guild_permissions.administrator or message.author.id in bot_admins:
             destination = message.channel
         else:
             destination = message.author
             try:
-                await client.add_reaction(message, "✅")
+                await message.add_reaction("✅")
             except discord.errors.Forbidden:
                 pass
             remove_message = False
 
-        await client.send_message(destination, embed=help_embed)
+        await destination.send(embed=help_embed)
 
     elif message.content.lower().startswith(prefix + 'prefix'):
         content = message.content[8:].lower()
@@ -627,20 +615,20 @@ async def on_message(message):
                 description=helpmsg['prefix'].format(prefix=prefix),
                 color=0x37ceb2
             )
-            await client.send_message(message.channel, embed=help_embed)
+            await message.channel.send(embed=help_embed)
             return 0
 
-        if (not message.author.server_permissions.administrator) and (message.author.id not in bot_admins):
-            await client.send_message(message.channel, "You have to be admin for that.")
+        if (not message.author.guild_permissions.administrator) and (message.author.id not in bot_admins):
+            await message.channel.send("You have to be admin for that.")
             return 0
 
         if len(content) != 1:
-            await client.send_message(message.channel, "The prefix has to be **one** character.")
+            await message.channel.send("The prefix has to be **one** character.")
             return 0
 
-        sqlib.servers.update(message.server.id, {'prefix': content})
+        sqlib.servers.update(message.guild.id, {'prefix': content})
 
-        await client.send_message(message.channel, "Okay, new prefix is `{0}`.".format(content))
+        await message.channel.send("Okay, new prefix is `{0}`.".format(content))
 
     elif message.content.lower().startswith(prefix + 'invite'):
         content = message.content[8:]
@@ -651,11 +639,10 @@ async def on_message(message):
                 description=helpmsg['invite'].format(prefix=prefix),
                 color=0x37ceb2
             )
-            await client.send_message(message.channel, embed=help_embed)
+            await message.channel.send(embed=help_embed)
             return 0
 
-        await client.send_message(
-            message.channel,
+        await message.channel.send(
             "Okay, invite me to your Server:\n"
             "https://discordapp.com/oauth2/authorize?client_id=360801859461447700&scope=bot&permissions=19456"
         )
@@ -667,7 +654,7 @@ async def on_message(message):
                 description=helpmsg['info'].format(prefix=prefix),
                 color=0x37ceb2
             )
-            await client.send_message(message.channel, embed=help_embed)
+            await message.channel.send(embed=help_embed)
             return 0
 
         infotext = discord.Embed(
@@ -710,43 +697,43 @@ async def on_message(message):
             name="Stats",
             value="Server count: **{0}**\n"
                   "Uptime: **{1}** hours, **{2}** minutes\n"
-                  "Member count: **{3}**".format(len(client.servers), up_hours, up_minutes, len(list(client.get_all_members())))
+                  "Member count: **{3}**".format(len(client.guilds), up_hours, up_minutes, len(list(client.get_all_members())))
         )
         infotext.set_footer(
             text="Special thanks to MaxiHuHe04#8905 who supported me a few times."
         )
 
-        await client.send_message(message.channel, embed=infotext)
+        await message.channel.send(embed=infotext)
 
     elif client.user in message.mentions:
-        await client.send_message(message.channel, "Type `{0}help` to see available commands.".format(prefix))
+        await message.channel.send("Type `{0}help` to see available commands.".format(prefix))
 
-    client_member = message.server.get_member(client.user.id)
+    client_member = message.guild.get_member(client.user.id)
     if client_member.permissions_in(message.channel).manage_messages and remove_message:
-        await client.delete_message(message)
+        await message.delete()
 
 
 @client.event
-async def on_server_join(server):
+async def on_guild_join(guild):
     post_to_apis()
-    if sqlib.servers.get(server.id) is None:
-        sqlib.servers.add_element(server.id, {'prefix': '/'})
+    if sqlib.servers.get(guild.id) is None:
+        sqlib.servers.add_element(guild.id, {'prefix': '/'})
     try:
-        await client.send_message(server.owner, "Hey, you or an admin on your server invited me to '{0}'. :smiley:\n"
-                                                "The default prefix is `/`, so type `/help` into a text channel "
-                                                "on the server to see what you "
-                                                "(or rather I) can do.".format(server.name))
+        await guild.owner.send("Hey, you or an admin on your guild invited me to '{0}'. :smiley:\n"
+                               "The default prefix is `/`, so type `/help` into a text channel "
+                               "on the guild to see what you "
+                               "(or rather I) can do.".format(guild.name))
 
-        if server.default_channel is not None:
-            await client.send_message(server.default_channel, "Hey, I'm glad to be here. "
-                                                              "Hopefully I'll be helpful :smiley:.\n"
-                                                              "Type `/help` to see all available commands.")
+        if guild.default_channel is not None:
+            await guild.default_channel.send("Hey, I'm glad to be here. "
+                                             "Hopefully I'll be helpful :smiley:.\n"
+                                             "Type `/help` to see all available commands.")
     except discord.errors.Forbidden:
         pass
 
 
 @client.event
-async def on_server_remove(server):
+async def on_guild_remove(guild):
     post_to_apis()
 
 
@@ -766,4 +753,4 @@ async def uptime_count():
 
 
 client.loop.create_task(uptime_count())
-client.run('BOT-TOKEN')  # TODO: insert token
+client.run('BOT_TOKEN')  # TODO: insert token
