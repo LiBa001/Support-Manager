@@ -82,14 +82,15 @@ def close_invalids():
 
 
 def post_to_apis():
-    """
     domains = {
         'discordbots.org': 'API-TOKEN',
         'bots.discord.pw': 'API-TOKEN'
     }
     for domain in domains:
         count_json = json.dumps({
-            "guild_count": len(client.guilds)
+            "server_count": len(client.guilds),
+            "shard_count": client.shard_count,
+            "shard_id": client.shard_id
         })
 
         # Resolve HTTP redirects
@@ -109,8 +110,6 @@ def post_to_apis():
         )
 
         urllib.request.urlopen(api_req, count_json.encode("ascii"))
-        """
-    pass
 
 
 @client.event
