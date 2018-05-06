@@ -11,7 +11,10 @@ class Table:
     def _to_int(self, values):
         int_values = []
 
-        if len(values) == 1:
+        if values is None:
+            return None
+
+        elif len(values) == 1:
             skip_first = False
         else:
             skip_first = True
