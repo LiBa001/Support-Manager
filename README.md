@@ -1,3 +1,12 @@
+> ## Warning
+> This version is deprecated since there is a rework of this bot available [here](https://github.com/Support-Manager/Discord-Bot).  
+> There is also a cool new [website](https://support-manager.org) for the bot.  
+> However the new version is running under the same bot account so the invite links now lead to the new version, BUT there are new required permissions so please don't use them anymore.  
+
+
+___
+
+
 # Support-Manager
 
 [![Discord Bots](https://discordbots.org/api/widget/360801859461447700.png)](https://discordbots.org/bot/360801859461447700)
